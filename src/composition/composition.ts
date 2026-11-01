@@ -212,15 +212,37 @@ export function createComposition(
     if (jingle && jingleCue) syncAudio(jingle, jingleCue, 0, t, playing)
   }
 
+  // Export only: each video is shown through a canvas copy of its frame.
+  // Chrome sends video frames to the screen separately from the rest of the
+  // page, so a screenshot taken just after a seek can still show the
+  // previous frame; a canvas is painted with the page.
+  const stills = new Map<HTMLVideoElement, HTMLCanvasElement>()
+  const still = (video: HTMLVideoElement) => {
+    let canvas = stills.get(video)
+    if (!canvas) {
+      canvas = document.createElement('canvas')
+      canvas.style.cssText = video.style.cssText
+      video.after(canvas)
+      video.style.visibility = 'hidden'
+      stills.set(video, canvas)
+    }
+    if (canvas.width !== video.videoWidth) canvas.width = video.videoWidth
+    if (canvas.height !== video.videoHeight) canvas.height = video.videoHeight
+    canvas.getContext('2d')?.drawImage(video, 0, 0)
+  }
+
   const renderFrame = async (frame: number) => {
     const t = frame / stage.fps
     seek(t)
     await Promise.all(
       videos
         .filter((v) => t >= v.start && t < v.end)
-        // A hair past the frame time, so float error can't land on the
-        // previous frame.
-        .map((v) => seekVideo(v.el, v.trimIn + (t - v.start) + 1e-3)),
+        .map(async (v) => {
+          // A hair past the frame time, so float error can't land on the
+          // previous frame.
+          await seekVideo(v.el, v.trimIn + (t - v.start) + 1e-3)
+          still(v.el)
+        }),
     )
   }
 

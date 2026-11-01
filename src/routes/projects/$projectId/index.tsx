@@ -1,15 +1,18 @@
 import { useMemo, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { App, Button, Card, Drawer, Tabs, Tag, Tooltip } from 'antd'
+import { App, Button, Card, Drawer, Space, Tabs, Tag, Tooltip } from 'antd'
 import {
   ArrowLeftOutlined,
   ExportOutlined,
   EyeOutlined,
+  RedoOutlined,
+  UndoOutlined,
 } from '@ant-design/icons'
 import compositionCss from '#/composition/composition.css?url'
 import { toCompositionAssets } from '#/composition/assets'
 import { snapDown } from '#/composition/schedule'
 import { CompositionPlayer } from '#/components/CompositionPlayer'
+import type { SceneSeek } from '#/components/CompositionPlayer'
 import { AssetBin } from '#/components/editor/AssetBin'
 import type { AssetUse } from '#/components/editor/AssetBin'
 import { DetailsForm } from '#/components/editor/DetailsForm'
@@ -61,9 +64,27 @@ const statusTags: Record<SaveStatus, { color: string; label: string }> = {
 function Editor() {
   const { project, assets: initialAssets } = Route.useLoaderData()
   const { message } = App.useApp()
-  const { doc, update, status, error } = useProjectDoc(project.id, project.doc)
+  const {
+    doc,
+    update,
+    rewriteHistory,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    status,
+    error,
+  } = useProjectDoc(project.id, project.doc)
   const { assets, added, removed } = useAssets(project.id, initialAssets)
-  const [selectedId, setSelectedId] = useState(doc.scenes[0]?.id)
+  const [selectedId, setSelectedId] = useState<string | undefined>(
+    doc.scenes[0]?.id,
+  )
+  const [seekTo, setSeekTo] = useState<SceneSeek>()
+  // Selecting a scene also shows its start in the preview.
+  const selectScene = (sceneId: string) => {
+    setSelectedId(sceneId)
+    setSeekTo({ sceneId })
+  }
   const [exportOpen, setExportOpen] = useState(false)
 
   const assetMap = useMemo(
@@ -108,7 +129,7 @@ function Editor() {
       scenes.splice(at, 0, scene)
       return { ...d, scenes }
     })
-    setSelectedId(scene.id)
+    selectScene(scene.id)
   }
 
   const applyAsset = (use: AssetUse, asset: AssetRow) => {
@@ -141,7 +162,8 @@ function Editor() {
   }
 
   const removeAsset = async (asset: AssetRow) => {
-    update((d) => removeAssetReferences(d, asset.id))
+    // Throughout the history, so undo can't bring back a deleted asset.
+    rewriteHistory((d) => removeAssetReferences(d, asset.id))
     try {
       await deleteAsset({ data: { id: asset.id } })
       removed(asset.id)
@@ -161,6 +183,24 @@ function Editor() {
         <h1 className="m-0 flex-1 truncate text-lg font-semibold">
           {doc.title || 'Untitled game'}
         </h1>
+        <Space.Compact>
+          <Tooltip title="Undo (Ctrl+Z)">
+            <Button
+              icon={<UndoOutlined />}
+              aria-label="Undo"
+              disabled={!canUndo}
+              onClick={undo}
+            />
+          </Tooltip>
+          <Tooltip title="Redo (Ctrl+Shift+Z)">
+            <Button
+              icon={<RedoOutlined />}
+              aria-label="Redo"
+              disabled={!canRedo}
+              onClick={redo}
+            />
+          </Tooltip>
+        </Space.Compact>
         <Tooltip title={error}>
           <Tag color={tag.color}>{tag.label}</Tag>
         </Tooltip>
@@ -218,14 +258,18 @@ function Editor() {
 
         <div className="flex min-w-0 flex-col gap-4">
           <Card size="small">
-            <CompositionPlayer doc={previewDoc} assets={compositionAssets} />
+            <CompositionPlayer
+              doc={previewDoc}
+              assets={compositionAssets}
+              seekTo={seekTo}
+            />
           </Card>
           <Card size="small">
             <SceneList
               doc={doc}
               assets={assetMap}
               selectedId={selectedId}
-              onSelect={setSelectedId}
+              onSelect={selectScene}
               onMove={(from, to) => update((d) => moveScene(d, from, to))}
               onAdd={(type) => addScene(type)}
             />
@@ -237,6 +281,7 @@ function Editor() {
             <SceneInspector
               key={selected.id}
               scene={selected}
+              projectDuckLevel={doc.music.ducking.level}
               index={selectedIndex}
               assets={assets}
               onChange={(scene) =>
@@ -247,10 +292,11 @@ function Editor() {
               }
               onDelete={() => {
                 update((d) => removeScene(d, selected.id))
-                setSelectedId(
+                const next =
                   doc.scenes[selectedIndex + 1]?.id ??
-                    doc.scenes[selectedIndex - 1]?.id,
-                )
+                  doc.scenes[selectedIndex - 1]?.id
+                if (next) selectScene(next)
+                else setSelectedId(undefined)
               }}
             />
           ) : (

@@ -13,20 +13,28 @@ function formatTime(t: number) {
   return `${minutes}:${String(seconds).padStart(2, '0')}:${String(frames).padStart(2, '0')}`
 }
 
+// Asks the player to jump to the start of a scene. A new request object
+// jumps again, even to the same scene.
+export interface SceneSeek {
+  sceneId: string
+}
+
 interface Props {
   doc: ProjectDoc
   assets: CompositionAsset[]
+  seekTo?: SceneSeek
 }
 
 // Scaled-down live preview. The composition itself is time-driven; this
 // player is the clock, advancing time from requestAnimationFrame.
-export function CompositionPlayer({ doc, assets }: Props) {
+export function CompositionPlayer({ doc, assets, seekTo }: Props) {
   const frameRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
   const [composition, setComposition] = useState<Composition | null>(null)
   const [scale, setScale] = useState(0)
   const [time, setTime] = useState(0)
   const [playing, setPlaying] = useState(false)
+  const handledSeek = useRef<SceneSeek>(undefined)
 
   useEffect(() => {
     if (!hostRef.current) return
@@ -46,6 +54,18 @@ export function CompositionPlayer({ doc, assets }: Props) {
     observer.observe(frame)
     return () => observer.disconnect()
   }, [])
+
+  // Jump to the start of a scene. The preview lags edits a little, so a new scene
+  // may only appear in a later composition; the jump happens once it does.
+  useEffect(() => {
+    if (!composition || !seekTo || handledSeek.current === seekTo) return
+    const item = composition.schedule.items.find((i) => i.id === seekTo.sceneId)
+    if (!item) return
+    handledSeek.current = seekTo
+    setPlaying(false)
+    // After any dissolve, so the scene is fully shown.
+    setTime(item.start + item.dissolve)
+  }, [composition, seekTo])
 
   // Paused: show the current time.
   useEffect(() => {

@@ -28,16 +28,13 @@ export function musicGainExpression(cue: MusicCue) {
   if (cue.fadeOut > 0) {
     terms.push(`clip((${n(cue.end)}-t)/${n(cue.fadeOut)},0,1)`)
   }
-  const { level, windows } = cue.ducking
   const ramp = Math.max(cue.ducking.ramp, MIN_RAMP)
-  if (windows.length > 0) {
-    const depth = windows
-      .map(
-        (w) =>
-          `clip(min((t-${n(w.start - ramp)})/${n(ramp)},(${n(w.end + ramp)}-t)/${n(ramp)}),0,1)`,
-      )
-      .reduce((a, b) => `max(${a},${b})`)
-    terms.push(`(1-${n(1 - level)}*${depth})`)
+  const ducks = cue.ducking.windows.map(
+    (w) =>
+      `(1-${n(1 - w.level)}*clip(min((t-${n(w.start - ramp)})/${n(ramp)},(${n(w.end + ramp)}-t)/${n(ramp)}),0,1))`,
+  )
+  if (ducks.length > 0) {
+    terms.push(ducks.reduce((a, b) => `min(${a},${b})`))
   }
   return terms.join('*')
 }

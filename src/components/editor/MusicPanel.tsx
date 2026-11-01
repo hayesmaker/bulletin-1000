@@ -4,11 +4,12 @@ import { snap } from '#/composition/schedule'
 import type { AssetRow } from '#/server/db/schema'
 import { AssetSelect } from './AssetSelect'
 import { sceneLabels } from './labels'
+import type { UpdateDoc } from './useProjectDoc'
 
 interface Props {
   doc: ProjectDoc
   assets: AssetRow[]
-  update: (change: (doc: ProjectDoc) => ProjectDoc) => void
+  update: UpdateDoc
 }
 
 const splashOptions: Array<{ value: Splash; label: string }> = [

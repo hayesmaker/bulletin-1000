@@ -117,6 +117,7 @@ const scenes: Array<Scene> = [
     trimOut: Math.min(clip.metadata.duration ?? 5, 6),
     keepClipAudio: false,
     duckMusic: true,
+    duckLevel: null,
     transitionIn: i === 0 ? 'cut' : 'dissolve',
     captions:
       i === 0
