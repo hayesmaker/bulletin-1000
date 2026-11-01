@@ -16,7 +16,9 @@ The visual and structural reference for the video template (promo structure, spl
 - TypeScript
 - Ant Design (components) + Tailwind
 - GSAP (video composition)
-- SQLite
+- SQLite via Drizzle ORM + better-sqlite3
+- Zod (project document and server function validation)
+- Vitest
 - Clerk auth (later milestone)
 
 ## Commands
@@ -24,8 +26,19 @@ The visual and structural reference for the video template (promo structure, spl
 - `npm run dev`: dev server on port 3000
 - `npm run build`: production build
 - `npm run lint` / `npm run format` / `npm run check`
+- `npm test`: run the Vitest suite
+- `npm run db:generate`: generate a migration in `drizzle/` after changing `src/server/db/schema.ts` (migrations are applied automatically when the server opens the database)
+- `npm run db:studio`: browse the database
 
 Imports can use the `#/*` alias for `src/*`.
+
+## Code layout
+
+- `src/lib/`: code shared by client and server. `project.ts` holds the project document schema (Zod) and its types.
+- `src/server/`: server code. `*.server.ts` files are server-only (Start import protection). `*.functions.ts` files hold `createServerFn` wrappers and are safe to import from routes.
+- `src/server/db/`: Drizzle schema and the database client.
+- `drizzle/`: generated SQL migrations. Commit them; don't edit them by hand.
+- `DATA_DIR` (default `./data`, gitignored) holds `bulletin.db` and `media/<projectId>/`.
 
 ## Technical rules
 
