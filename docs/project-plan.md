@@ -39,10 +39,10 @@ Updated 2026-11-01.
   - Its **start point is the user's choice** and defaults to the start of the first gameplay scene, as in the originals, where the intro cards play without music.
   - The source can be an uploaded audio file or the audio taken from one of the gameplay clips.
   - Gameplay clip audio is muted by default, with an optional per-scene "keep clip audio" switch mixed over the music. The music ducks under kept clip audio (see step 5).
-  - The splash jingle plays when a splash is selected.
+  - The 1989 splash plays its jingle; the 1985 splash is silent, as in the original footage. Either can use an uploaded sound instead, or none.
 - **Output: 1440×1080 at 25 fps** (4:3, PAL-era frame rate). H.264/AAC MP4.
 - **Fonts:** a free Helvetica-style sans for captions and packshot text, plus custom-designed chunky logo type for the 1985 splash. Font choices are defined once in the template theme config so they're easy to change.
-- **Splash intros are recreated in code**, not taken from the original footage: the 1985 neon grid uses GSAP/canvas, and the 1989 3D shapes use three.js. The jingle is a sound-alike. Splash is an optional, selectable intro.
+- **Splash intros are recreated in code**, not taken from the original footage, and follow the originals' timing and motion closely (decided 2026-11-01). The 1985 neon panel is SVG with a CSS 3D flip on the GSAP timeline. The 1989 ident is static in the original, so it's SVG too; three.js isn't needed (changed 2026-11-01). The 1989 jingle is an original synth ident in the same style, synthesised in code. Splash is an optional, selectable intro, and users can upload their own logo (replacing the lettering) and sound.
 - **Brand/rights:** UK IPO, TMview, and WIPO Global Brand Database searches on 2026-11-01 found no "Bulletin 1000" trade marks, and Companies House has no matching company. The splash logo artwork will be a **modified reinterpretation** of the originals, not a copy. Brand text and logo assets live in one place in the code so they can be swapped if needed.
 - **Aspect ratio: 4:3 only for the MVP.** 16:9 and 9:16 layouts come later.
 - **Look: clean output for the MVP.** CRT/VHS filters come in the effects milestone.
@@ -97,7 +97,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [x] Render page (`/render/:projectId`) exposing `window.composition.renderFrame(n)` for the exporter
 - [x] `npm run seed:demo` to create a demo project before the editor exists
 - [x] Inset scaling for low-res gameplay: `insetScaling` in the theme defaults to `'pixelated'` (crisp pixel art; decided 2026-11-01). `'smooth'` looks more like the analogue originals. Could become a per-project option later.
-- [ ] Replace the splash placeholder card (step 6)
+- [x] Replace the splash placeholder card (step 6)
 
 ### 4. Editor UI
 
@@ -125,15 +125,17 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
   - `schedule.ts` produces the duck windows and `musicGain()`; the export renders the same curve as an ffmpeg volume expression (tested against each other)
 - [x] Render progress and status in the editor's Export drawer; deleting a render stops it
 - [x] Download link and in-page player for the finished MP4 (`/renders/:id/file`)
-- [ ] Mix in the splash jingle (needs step 6)
+- [x] Mix in the splash jingle
 - [ ] Per-scene ducking level (only on/off for now)
 - [ ] Faster capture: about 6 frames/s now (a 24s video takes about 1.5 min). Options: JPEG frames, CDP screenshots, or several pages rendering ranges in parallel.
 
 ### 6. Splash recreations
 
-- [ ] 1985 neon grid splash (GSAP/canvas, reinterpreted logo)
-- [ ] 1989 3D shapes splash (three.js, reinterpreted logo)
-- [ ] Sound-alike jingle
+- [x] 1985 neon panel splash: lettering and "Video Magazine" neon script over a 5×3 neon grid, flipping in 1¼ turns about its horizontal axis. The motion follows keyframes measured from the reference (`theme.ts`, `curve.ts`); the splash lasts 2.4s, as in the original.
+- [x] 1989 ident: lit 3D shapes with floor shadows, chrome "Bulletin 1000" lettering with a reflection and "VISUAL COMMUNICATIONS" between rules, on a blue gradient. It fades in over 0.4s and out at 6.36–6.92s (7s), as in the original.
+- [x] Built-in 1989 jingle: an original synth ident (D major, ~150 bpm), synthesised deterministically in `src/server/jingle.server.ts`, cached under `DATA_DIR/generated/` and served at `/audio/jingle-1989`
+- [x] User options: splash logo image instead of the lettering; splash sound as built-in, none or an uploaded file
+- [ ] Optional VHS softness on the splash (effects milestone)
 
 ## Later milestones
 

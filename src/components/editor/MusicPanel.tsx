@@ -2,6 +2,7 @@ import { Form, InputNumber, Segmented, Select, Slider } from 'antd'
 import type { Music, ProjectDoc, Splash } from '#/lib/project'
 import { snap } from '#/composition/schedule'
 import type { AssetRow } from '#/server/db/schema'
+import { AssetSelect } from './AssetSelect'
 import { sceneLabels } from './labels'
 
 interface Props {
@@ -39,6 +40,24 @@ export function MusicPanel({ doc, assets, update }: Props) {
       })),
   ]
 
+  const jingleValue =
+    doc.splashJingle.type === 'upload'
+      ? doc.splashJingle.assetId
+      : doc.splashJingle.type
+  const jingleOptions = [
+    {
+      value: 'built-in',
+      label:
+        doc.splash === '1989'
+          ? 'Built-in jingle'
+          : 'Built-in (silent, like the original)',
+    },
+    { value: 'none', label: 'No sound' },
+    ...ready
+      .filter((a) => a.kind === 'audio')
+      .map((a) => ({ value: a.id, label: a.originalName })),
+  ]
+
   const startValue =
     music.startAt.type === 'scene' ? music.startAt.sceneId : 'first-gameplay'
   const startOptions = [
@@ -58,6 +77,39 @@ export function MusicPanel({ doc, assets, update }: Props) {
           onChange={(splash) => update((d) => ({ ...d, splash }))}
         />
       </Form.Item>
+      {doc.splash !== 'none' && (
+        <>
+          <Form.Item
+            label="Splash logo"
+            extra="Shown instead of the built-in Bulletin 1000 lettering."
+          >
+            <AssetSelect
+              assets={assets}
+              kind="image"
+              value={doc.splashLogoAssetId}
+              placeholder="Built-in lettering"
+              onChange={(splashLogoAssetId) =>
+                update((d) => ({ ...d, splashLogoAssetId }))
+              }
+            />
+          </Form.Item>
+          <Form.Item label="Splash sound">
+            <Select
+              value={jingleValue}
+              options={jingleOptions}
+              onChange={(v: string) =>
+                update((d) => ({
+                  ...d,
+                  splashJingle:
+                    v === 'built-in' || v === 'none'
+                      ? { type: v }
+                      : { type: 'upload', assetId: v },
+                }))
+              }
+            />
+          </Form.Item>
+        </>
+      )}
       <Form.Item
         label="Music"
         extra="An uploaded audio file, or the soundtrack of one of your clips."

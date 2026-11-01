@@ -12,7 +12,8 @@ import { renders } from '#/server/db/schema'
 import type { RenderRow } from '#/server/db/schema'
 import type { Db } from '#/server/db/client.server'
 import { spawnFfmpeg } from '#/server/ffmpeg.server'
-import { buildAudioMix } from '#/server/mix.server'
+import { builtInJinglePath } from '#/server/jingle.server'
+import { BUILT_IN_JINGLE, buildAudioMix } from '#/server/mix.server'
 
 // Video export. A render copies the project doc, waits its turn in a serial
 // queue, then headless Chrome steps the composition frame by frame into a
@@ -90,6 +91,9 @@ export async function runRender(db: Db, id: string, baseUrl: string) {
         .filter((a) => a.status === 'ready')
         .map((a) => [a.id, abs(a.path)]),
     )
+    if (schedule.jingle && !schedule.jingle.assetId) {
+      files.set(BUILT_IN_JINGLE, await builtInJinglePath())
+    }
     const mix = buildAudioMix(schedule, files, 1)
     await fsp.mkdir(path.dirname(partial), { recursive: true })
     ffmpeg = spawnFfmpeg([

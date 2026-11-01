@@ -71,7 +71,7 @@ export async function serveRenderFile(
 }
 
 // Serves a file from disk with Range support, so browsers can seek.
-async function serveFile(
+export async function serveFile(
   file: string,
   request: Request,
   extraHeaders: Record<string, string>,

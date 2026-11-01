@@ -5,7 +5,7 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { musicGain } from '#/composition/schedule'
 import type { MusicCue, Schedule } from '#/composition/schedule'
-import { SAMPLE_RATE, buildAudioMix } from './mix.server'
+import { BUILT_IN_JINGLE, SAMPLE_RATE, buildAudioMix } from './mix.server'
 
 // Runs the mix through ffmpeg with constant-level inputs and checks the
 // output level against the preview's musicGain(). Inputs are stereo, like
@@ -61,6 +61,7 @@ const schedule: Schedule = {
       duckMusic: true,
     },
   ],
+  jingle: null,
 }
 
 describe('buildAudioMix', () => {
@@ -95,6 +96,21 @@ describe('buildAudioMix', () => {
     }
     expect(at(1)).toBe(0)
     expect(at(6)).toBeCloseTo(0.35, 2)
+  })
+
+  it('adds the jingle at its start', () => {
+    const mix = buildAudioMix(
+      {
+        ...schedule,
+        music: null,
+        clipAudio: [],
+        jingle: { assetId: null, start: 0, end: 7 },
+      },
+      new Map([[BUILT_IN_JINGLE, '/jingle.wav']]),
+      1,
+    )
+    expect(mix.inputArgs.slice(-4)).toEqual(['-t', '7', '-i', '/jingle.wav'])
+    expect(mix.filter).toContain('[jingle]amix=inputs=2')
   })
 
   it('is a silent bed when there is no audio', () => {

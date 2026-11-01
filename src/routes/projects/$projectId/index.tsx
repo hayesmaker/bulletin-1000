@@ -11,6 +11,7 @@ import { toCompositionAssets } from '#/composition/assets'
 import { snapDown } from '#/composition/schedule'
 import { CompositionPlayer } from '#/components/CompositionPlayer'
 import { AssetBin } from '#/components/editor/AssetBin'
+import type { AssetUse } from '#/components/editor/AssetBin'
 import { DetailsForm } from '#/components/editor/DetailsForm'
 import { ExportPanel } from '#/components/editor/ExportPanel'
 import { MusicPanel } from '#/components/editor/MusicPanel'
@@ -25,7 +26,7 @@ import {
   removeAssetReferences,
   removeScene,
 } from '#/lib/project'
-import type { SceneType } from '#/lib/project'
+import type { ProjectDoc, SceneType } from '#/lib/project'
 import { deleteAsset, getAssets } from '#/server/assets.functions'
 import { getProject } from '#/server/projects.functions'
 import type { AssetRow } from '#/server/db/schema'
@@ -110,10 +111,10 @@ function Editor() {
     setSelectedId(scene.id)
   }
 
-  const applyAsset = (use: 'box-art' | 'music', asset: AssetRow) => {
-    if (use === 'box-art') update((d) => ({ ...d, boxArtAssetId: asset.id }))
-    else {
-      update((d) => ({
+  const applyAsset = (use: AssetUse, asset: AssetRow) => {
+    const changes: Record<AssetUse, (d: ProjectDoc) => ProjectDoc> = {
+      'box-art': (d) => ({ ...d, boxArtAssetId: asset.id }),
+      music: (d) => ({
         ...d,
         music: {
           ...d.music,
@@ -122,11 +123,21 @@ function Editor() {
             assetId: asset.id,
           },
         },
-      }))
+      }),
+      'splash-logo': (d) => ({ ...d, splashLogoAssetId: asset.id }),
+      'splash-jingle': (d) => ({
+        ...d,
+        splashJingle: { type: 'upload', assetId: asset.id },
+      }),
     }
-    void message.success(
-      use === 'box-art' ? 'Box art set' : `Music set to ${asset.originalName}`,
-    )
+    const messages: Record<AssetUse, string> = {
+      'box-art': 'Box art set',
+      music: `Music set to ${asset.originalName}`,
+      'splash-logo': 'Splash logo set',
+      'splash-jingle': `Splash sound set to ${asset.originalName}`,
+    }
+    update(changes[use])
+    void message.success(messages[use])
   }
 
   const removeAsset = async (asset: AssetRow) => {
