@@ -39,10 +39,10 @@ Updated 2026-11-01.
   - The source can be an uploaded audio file or the audio taken from one of the gameplay clips.
   - Gameplay clip audio is muted by default, with an optional per-scene "keep clip audio" switch mixed over the music.
   - The splash jingle plays when a splash is selected.
-- **Output: 1440×1080 at 25fps** (4:3, PAL-era frame rate). H.264/AAC MP4.
+- **Output: 1440×1080 at 25 fps** (4:3, PAL-era frame rate). H.264/AAC MP4.
 - **Fonts:** a free Helvetica-style sans for captions and packshot text, plus custom-designed chunky logo type for the 1985 splash. Font choices are defined once in the template theme config so they're easy to change.
 - **Splash intros are recreated in code**, not taken from the original footage: the 1985 neon grid uses GSAP/canvas, and the 1989 3D shapes use three.js. The jingle is a sound-alike. Splash is an optional, selectable intro.
-- **Brand/rights:** UK IPO, TMview and WIPO Global Brand Database searches on 2026-11-01 found no "Bulletin 1000" trade marks, and Companies House has no matching company. The splash logo artwork will be a **modified reinterpretation** of the originals, not a copy. Brand text and logo assets live in one place in the code so they can be swapped if needed.
+- **Brand/rights:** UK IPO, TMview, and WIPO Global Brand Database searches on 2026-11-01 found no "Bulletin 1000" trade marks, and Companies House has no matching company. The splash logo artwork will be a **modified reinterpretation** of the originals, not a copy. Brand text and logo assets live in one place in the code so they can be swapped if needed.
 - **Aspect ratio: 4:3 only for the MVP.** 16:9 and 9:16 layouts come later.
 - **Look: clean output for the MVP.** CRT/VHS filters come in the effects milestone.
 - **Uploads:** gameplay clips are limited (around 100MB or 2 min). Users set in/out points in the editor, and the server transcodes clips to a standard format (H.264/AAC MP4, constant frame rate) with ffmpeg on upload.
@@ -80,7 +80,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 
 ### 3. Composition (GSAP template)
 
-- [ ] Theme config: fonts, colours and brand assets in one place
+- [ ] Theme config: fonts, colours, and brand assets in one place
 - [ ] Deterministic timeline builder (project JSON → GSAP timeline), with no real-time dependencies
 - [ ] Packshot card
 - [ ] Publisher logo card and title screen card
@@ -101,8 +101,8 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 ### 5. Export
 
 - [ ] SQLite-backed render job queue with a single worker
-- [ ] Playwright frame capture at 1440×1080, 25fps
-- [ ] ffmpeg encode, mixing music, clip audio and jingle
+- [ ] Playwright frame capture at 1440×1080, 25 fps
+- [ ] ffmpeg encode, mixing music, clip audio, and jingle
 - [ ] Render progress and status in the UI
 - [ ] Download link for the finished MP4
 
@@ -125,7 +125,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [ ] Selectable and editable transitions/animations
 - [ ] Additional templates (e.g. a WHSmith-style compilation)
 - [ ] Homepage with a promo video made by the tool itself
-- [ ] Monetisation tiers (free / standard / pro), where limits might include render length, watermark, resolution and TTS characters
+- [ ] Monetisation tiers (free / standard / pro), where limits might include render length, watermark, resolution, and TTS characters
 
 ## Open questions
 
