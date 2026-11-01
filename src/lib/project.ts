@@ -122,6 +122,17 @@ export const projectDocSchema = z.object({
   boxArtAssetId: id.nullable(),
   packshotColour: hexColour,
   splash: splashSchema,
+  // An uploaded image shown instead of the splash's built-in lettering.
+  splashLogoAssetId: id.nullable().default(null),
+  // The splash sound: the built-in jingle (1989 only; the 1985 splash is
+  // silent, like the original), none, or an uploaded audio file.
+  splashJingle: z
+    .discriminatedUnion('type', [
+      z.object({ type: z.literal('built-in') }),
+      z.object({ type: z.literal('none') }),
+      z.object({ type: z.literal('upload'), assetId: id }),
+    ])
+    .default({ type: 'built-in' }),
   music: musicSchema,
   scenes: z.array(sceneSchema).max(50),
 })
@@ -147,6 +158,8 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
     boxArtAssetId: null,
     packshotColour: DEFAULT_PACKSHOT_COLOUR,
     splash: 'none',
+    splashLogoAssetId: null,
+    splashJingle: { type: 'built-in' },
     music: {
       source: { type: 'none' },
       sourceOffset: 0,
@@ -238,6 +251,8 @@ export function sceneLength(scene: Scene) {
 export function assetIdsInDoc(doc: ProjectDoc) {
   const ids = new Set<string>()
   if (doc.boxArtAssetId) ids.add(doc.boxArtAssetId)
+  if (doc.splashLogoAssetId) ids.add(doc.splashLogoAssetId)
+  if (doc.splashJingle.type === 'upload') ids.add(doc.splashJingle.assetId)
   if (doc.music.source.type !== 'none') ids.add(doc.music.source.assetId)
   for (const scene of doc.scenes) {
     if ('assetId' in scene && scene.assetId) ids.add(scene.assetId)
@@ -254,6 +269,12 @@ export function removeAssetReferences(
   return {
     ...doc,
     boxArtAssetId: doc.boxArtAssetId === assetId ? null : doc.boxArtAssetId,
+    splashLogoAssetId:
+      doc.splashLogoAssetId === assetId ? null : doc.splashLogoAssetId,
+    splashJingle:
+      doc.splashJingle.type === 'upload' && doc.splashJingle.assetId === assetId
+        ? { type: 'built-in' }
+        : doc.splashJingle,
     music:
       source.type !== 'none' && source.assetId === assetId
         ? { ...doc.music, source: { type: 'none' } }

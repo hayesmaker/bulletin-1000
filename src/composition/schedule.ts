@@ -59,11 +59,19 @@ export interface ClipAudioCue {
   duckMusic: boolean
 }
 
+// The splash sound. A null assetId is the built-in 1989 jingle.
+export interface JingleCue {
+  assetId: string | null
+  start: number
+  end: number
+}
+
 export interface Schedule {
   items: ScheduledItem[]
   duration: number
   music: MusicCue | null
   clipAudio: ClipAudioCue[]
+  jingle: JingleCue | null
 }
 
 export const toFrames = (seconds: number) => Math.round(seconds * stage.fps)
@@ -132,6 +140,7 @@ export function buildSchedule(
     duration,
     music: musicCue(doc, items, assets, duration, clipAudio),
     clipAudio,
+    jingle: jingleCue(doc, items, assets, duration),
   }
 }
 
@@ -173,6 +182,37 @@ function musicCue(
       ...music.ducking,
       windows: duckWindows(clipAudio, music.ducking.ramp),
     },
+  }
+}
+
+function jingleCue(
+  doc: ProjectDoc,
+  items: ScheduledItem[],
+  assets: Map<string, AssetInfo>,
+  duration: number,
+): JingleCue | null {
+  const splash = items.find(
+    (i): i is ScheduledItem & SplashItem => i.kind === 'splash',
+  )
+  if (!splash) return null
+  const source = doc.splashJingle
+  let length: number | undefined
+  let assetId: string | null = null
+  if (source.type === 'built-in') {
+    // The 1985 splash is silent, like the original.
+    if (splash.splash !== '1989') return null
+    length = timing.builtInJingle
+  } else if (source.type === 'upload') {
+    const asset = assets.get(source.assetId)
+    if (!asset?.hasAudio) return null
+    length = asset.duration
+    assetId = asset.id
+  }
+  if (!length) return null
+  return {
+    assetId,
+    start: splash.start,
+    end: snap(Math.min(splash.start + length, duration)),
   }
 }
 

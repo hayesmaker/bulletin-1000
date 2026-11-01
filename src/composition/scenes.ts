@@ -1,6 +1,8 @@
 import type { ProjectDoc, Scene } from '#/lib/project'
 import type { AssetInfo, ScheduledItem } from './schedule'
-import { brand, colours, fonts, insetScaling, layout, stage } from './theme'
+import { buildSplash } from './splash'
+import type { SplashLayer } from './splash'
+import { colours, insetScaling, layout, stage } from './theme'
 
 // DOM builders for each scene type. Each returns an absolutely positioned
 // layer covering the stage; the composition shows and hides layers and
@@ -30,6 +32,8 @@ export interface BuiltLayer {
   captions: CaptionCue[]
   video?: VideoCue
   images: HTMLImageElement[]
+  // Motion of its own, added to the timeline at the item's start.
+  animate?: SplashLayer['animate']
 }
 
 type Style = Partial<CSSStyleDeclaration>
@@ -173,7 +177,13 @@ export function buildLayer(
   const built: BuiltLayer = { layer, captions: [], images: [] }
 
   if (item.kind === 'splash') {
-    layer.append(splashPlaceholder(item.splash))
+    const logo = doc.splashLogoAssetId
+      ? assets.get(doc.splashLogoAssetId)
+      : undefined
+    const splash = buildSplash(item.splash, logo)
+    layer.append(splash.el)
+    built.images.push(...splash.images)
+    built.animate = splash.animate
     return built
   }
 
@@ -328,31 +338,4 @@ function packshot(
     )
   }
   return [box, column]
-}
-
-// Stand-in until the splash recreations (milestone 1, step 6).
-function splashPlaceholder(year: '1985' | '1989') {
-  return el(
-    'div',
-    {
-      position: 'absolute',
-      inset: '0',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: colours.logo,
-      fontFamily: fonts.logo,
-    },
-    el(
-      'div',
-      { fontSize: '150px', fontWeight: '900', fontStretch: '110%' },
-      brand.name.toUpperCase(),
-    ),
-    el(
-      'div',
-      { fontSize: '64px', fontWeight: '600', fontStyle: 'italic' },
-      `${brand.tagline} · ${year}`,
-    ),
-  )
 }

@@ -24,6 +24,11 @@ const config = defineConfig({
           method: 'GET',
           handler: './src/server/render-file.handler.ts',
         },
+        {
+          route: '/audio/jingle-1989',
+          method: 'GET',
+          handler: './src/server/jingle.handler.ts',
+        },
       ],
     }),
     tailwindcss(),

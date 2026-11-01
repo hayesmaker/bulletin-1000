@@ -1,8 +1,10 @@
 import { gsap } from 'gsap'
+import { BUILT_IN_JINGLE_URL } from '#/lib/assets'
 import type { ProjectDoc } from '#/lib/project'
 import { buildSchedule, musicGain } from './schedule'
 import type { Schedule } from './schedule'
 import { buildLayer } from './scenes'
+import { splashFontFaces } from './splash'
 import type { CaptionCue, CompositionAsset, VideoCue } from './scenes'
 import { colours, fonts, layout, stage } from './theme'
 
@@ -101,6 +103,7 @@ export function createComposition(
     captions.push(...built.captions)
     images.push(...built.images)
     if (built.video) videos.push(built.video)
+    built.animate?.(tl, item.start)
 
     if (item.dissolve > 0) {
       tl.fromTo(
@@ -131,12 +134,41 @@ export function createComposition(
     ? new Audio(assets.get(schedule.music.assetId)?.url)
     : null
   if (music) music.preload = 'auto'
+  const jingleCue = schedule.jingle
+  const jingle = jingleCue
+    ? new Audio(
+        jingleCue.assetId
+          ? assets.get(jingleCue.assetId)?.url
+          : BUILT_IN_JINGLE_URL,
+      )
+    : null
+  if (jingle) jingle.preload = 'auto'
+
+  // Keeps an audio element playing in step with time t.
+  const syncAudio = (
+    el: HTMLAudioElement,
+    cue: { start: number; end: number },
+    offset: number,
+    t: number,
+    playing: boolean,
+  ) => {
+    if (t < cue.start || t >= cue.end || !playing) {
+      if (!el.paused) el.pause()
+      return
+    }
+    const desired = offset + (t - cue.start)
+    if (Math.abs(el.currentTime - desired) > PLAYING_DRIFT) {
+      el.currentTime = desired
+    }
+    if (el.paused) void el.play().catch(() => undefined)
+  }
 
   const fontFaces = [
     `${layout.caption.fontWeight} ${layout.caption.fontSize}px ${fonts.sans}`,
     `${layout.packshot.priceFontWeight} ${layout.packshot.priceFontSize}px ${fonts.sans}`,
     `${layout.packshot.platformFontWeight} ${layout.packshot.platformFontSize}px ${fonts.sans}`,
     `${layout.overlayCaption.fontWeight} ${layout.overlayCaption.fontSize}px ${fonts.sans}`,
+    ...splashFontFaces,
   ]
   const ready = Promise.all([
     ...fontFaces.map((f) => document.fonts.load(f).catch(() => [])),
@@ -174,18 +206,10 @@ export function createComposition(
 
     const cue = schedule.music
     if (music && cue) {
-      const active = t >= cue.start && t < cue.end
-      if (!active || !playing) {
-        if (!music.paused) music.pause()
-      } else {
-        const desired = cue.sourceOffset + (t - cue.start)
-        if (Math.abs(music.currentTime - desired) > PLAYING_DRIFT) {
-          music.currentTime = desired
-        }
-        if (music.paused) void music.play().catch(() => undefined)
-      }
+      syncAudio(music, cue, cue.sourceOffset, t, playing)
       music.volume = Math.max(0, Math.min(1, musicGain(cue, t)))
     }
+    if (jingle && jingleCue) syncAudio(jingle, jingleCue, 0, t, playing)
   }
 
   const renderFrame = async (frame: number) => {
@@ -208,6 +232,7 @@ export function createComposition(
       v.el.load()
     }
     music?.pause()
+    jingle?.pause()
     stageEl.remove()
   }
 

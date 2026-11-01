@@ -43,3 +43,6 @@ export function assetUploadUrl(projectId: string, filename: string) {
 export function renderFileUrl(renderId: string, download = false) {
   return `/renders/${renderId}/file${download ? '?download' : ''}`
 }
+
+// The built-in 1989 splash jingle (served by src/server/jingle.handler.ts).
+export const BUILT_IN_JINGLE_URL = '/audio/jingle-1989'

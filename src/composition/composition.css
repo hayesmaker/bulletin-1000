@@ -1,3 +1,6 @@
 /* Fonts used by the composition (see fonts in theme.ts). Archivo's width
-   axis gives both the condensed caption and the regular packshot text. */
+   axis gives both the condensed caption and the regular packshot text.
+   Yellowtail and Rubik are the 1985 script and the 1989 chrome lettering. */
 @import '@fontsource-variable/archivo/wdth.css';
+@import '@fontsource/yellowtail/latin-400.css';
+@import '@fontsource-variable/rubik/wght.css';

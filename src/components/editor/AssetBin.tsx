@@ -17,7 +17,7 @@ import type { SceneType } from '#/lib/project'
 import type { AssetRow } from '#/server/db/schema'
 import { formatSeconds, sceneLabels, thumbUrl } from './labels'
 
-export type AssetUse = 'box-art' | 'music'
+export type AssetUse = 'box-art' | 'music' | 'splash-logo' | 'splash-jingle'
 
 interface Props {
   projectId: string
@@ -81,9 +81,13 @@ function actionsFor(asset: AssetRow): MenuProps['items'] {
         scene('title-screen'),
         scene('publisher-logo'),
         { key: 'use:box-art', label: 'Use as box art' },
+        { key: 'use:splash-logo', label: 'Use as the splash logo' },
       ]
     case 'audio':
-      return [{ key: 'use:music', label: 'Use as the music' }]
+      return [
+        { key: 'use:music', label: 'Use as the music' },
+        { key: 'use:splash-jingle', label: 'Use as the splash sound' },
+      ]
   }
 }
 

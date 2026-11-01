@@ -264,4 +264,39 @@ describe('buildSchedule', () => {
       expect(musicGain(cue, 14)).toBe(0)
     })
   })
+
+  describe('jingle', () => {
+    const scenes = [card('packshot', 4)]
+
+    it('plays the built-in jingle with the 1989 splash only', () => {
+      expect(
+        buildSchedule(doc({ splash: '1989', scenes }), assets).jingle,
+      ).toEqual({ assetId: null, start: 0, end: 7 })
+      expect(
+        buildSchedule(doc({ splash: '1985', scenes }), assets).jingle,
+      ).toBeNull()
+      expect(buildSchedule(doc({ scenes }), assets).jingle).toBeNull()
+    })
+
+    it('plays an uploaded jingle for its length, with either splash', () => {
+      const s = buildSchedule(
+        doc({
+          splash: '1985',
+          splashJingle: { type: 'upload', assetId: tuneId },
+          scenes,
+        }),
+        assets,
+      )
+      // The tune is 60s, so it is cut at the end of the video.
+      expect(s.jingle).toEqual({ assetId: tuneId, start: 0, end: 6.4 })
+    })
+
+    it('is silent when turned off', () => {
+      const s = buildSchedule(
+        doc({ splash: '1989', splashJingle: { type: 'none' }, scenes }),
+        assets,
+      )
+      expect(s.jingle).toBeNull()
+    })
+  })
 })

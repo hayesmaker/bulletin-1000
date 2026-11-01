@@ -163,5 +163,21 @@ describe('editing helpers', () => {
     expect(cleaned.scenes).toHaveLength(3)
     expect(assetIdsInDoc(cleaned)).toEqual(new Set([box, other]))
     expect(removeAssetReferences(cleaned, box).boxArtAssetId).toBeNull()
+
+    const logo = uuid()
+    const jingle = uuid()
+    const withSplash: ProjectDoc = {
+      ...doc,
+      splashLogoAssetId: logo,
+      splashJingle: { type: 'upload', assetId: jingle },
+    }
+    expect(assetIdsInDoc(withSplash)).toEqual(
+      new Set([box, clip, other, logo, jingle]),
+    )
+    const noLogo = removeAssetReferences(withSplash, logo)
+    expect(noLogo.splashLogoAssetId).toBeNull()
+    expect(removeAssetReferences(noLogo, jingle).splashJingle).toEqual({
+      type: 'built-in',
+    })
   })
 })

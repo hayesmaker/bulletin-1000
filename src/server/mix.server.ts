@@ -3,10 +3,13 @@ import type { MusicCue, Schedule } from '#/composition/schedule'
 
 // Builds the ffmpeg inputs and filter graph that mix an export's audio:
 // a silent bed the length of the video, the music (offset, delayed to its
-// start, with the same volume curve as the preview) and each kept clip's
-// audio. Pure, so it can be tested without running ffmpeg.
+// start, with the same volume curve as the preview), each kept clip's audio
+// and the splash jingle. Pure, so it can be tested without running ffmpeg.
 
 export const SAMPLE_RATE = 48000
+
+// The key for the built-in jingle's file in `files`.
+export const BUILT_IN_JINGLE = 'built-in-jingle'
 
 export interface AudioMix {
   // ffmpeg arguments for the audio inputs, in order.
@@ -94,6 +97,15 @@ export function buildAudioMix(
     const label = `[clip${chains.length}]`
     chains.push(`[${index}:a]${normalise},${delay(cue.start)}${label}`)
     labels.push(label)
+    index++
+  }
+
+  const jingle = schedule.jingle
+  const jingleFile = jingle && files.get(jingle.assetId ?? BUILT_IN_JINGLE)
+  if (jingle && jingleFile) {
+    inputArgs.push('-t', n(jingle.end - jingle.start), '-i', jingleFile)
+    chains.push(`[${index}:a]${normalise},${delay(jingle.start)}[jingle]`)
+    labels.push('[jingle]')
     index++
   }
 
