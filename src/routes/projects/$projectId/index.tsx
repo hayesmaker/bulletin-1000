@@ -1,0 +1,239 @@
+import { useMemo, useState } from 'react'
+import { Link, createFileRoute } from '@tanstack/react-router'
+import { App, Card, Tabs, Tag, Tooltip } from 'antd'
+import { ArrowLeftOutlined, EyeOutlined } from '@ant-design/icons'
+import compositionCss from '#/composition/composition.css?url'
+import { toCompositionAssets } from '#/composition/assets'
+import { snapDown } from '#/composition/schedule'
+import { CompositionPlayer } from '#/components/CompositionPlayer'
+import { AssetBin } from '#/components/editor/AssetBin'
+import { DetailsForm } from '#/components/editor/DetailsForm'
+import { MusicPanel } from '#/components/editor/MusicPanel'
+import { SceneInspector } from '#/components/editor/SceneInspector'
+import { SceneList } from '#/components/editor/SceneList'
+import { useAssets } from '#/components/editor/useAssets'
+import { useDebounced, useProjectDoc } from '#/components/editor/useProjectDoc'
+import type { SaveStatus } from '#/components/editor/useProjectDoc'
+import {
+  moveScene,
+  newScene,
+  removeAssetReferences,
+  removeScene,
+} from '#/lib/project'
+import type { SceneType } from '#/lib/project'
+import { deleteAsset, getAssets } from '#/server/assets.functions'
+import { getProject } from '#/server/projects.functions'
+import type { AssetRow } from '#/server/db/schema'
+
+export const Route = createFileRoute('/projects/$projectId/')({
+  loader: async ({ params }) => {
+    const [project, assets] = await Promise.all([
+      getProject({ data: { id: params.projectId } }),
+      getAssets({ data: { projectId: params.projectId } }),
+    ])
+    return { project, assets }
+  },
+  head: ({ loaderData }) => ({
+    meta: [
+      { title: `${loaderData?.project.title ?? 'Editor'} – Bulletin 1000` },
+    ],
+    links: [{ rel: 'stylesheet', href: compositionCss }],
+  }),
+  component: Editor,
+})
+
+const PREVIEW_DELAY = 300
+
+const statusTags: Record<SaveStatus, { color: string; label: string }> = {
+  saved: { color: 'success', label: 'Saved' },
+  pending: { color: 'default', label: 'Unsaved changes' },
+  saving: { color: 'processing', label: 'Saving…' },
+  invalid: { color: 'warning', label: 'Not saved: fix errors' },
+  error: { color: 'error', label: 'Save failed' },
+}
+
+function Editor() {
+  const { project, assets: initialAssets } = Route.useLoaderData()
+  const { message } = App.useApp()
+  const { doc, update, status, error } = useProjectDoc(project.id, project.doc)
+  const { assets, added, removed } = useAssets(project.id, initialAssets)
+  const [selectedId, setSelectedId] = useState(doc.scenes[0]?.id)
+
+  const assetMap = useMemo(
+    () => new Map(assets.map((a) => [a.id, a])),
+    [assets],
+  )
+  // Rebuild the preview only when the set of ready assets changes, not on
+  // every poll.
+  const readyKey = assets
+    .filter((a) => a.status === 'ready')
+    .map((a) => a.id)
+    .join()
+  const compositionAssets = useMemo(
+    () => toCompositionAssets(assets),
+    [readyKey],
+  )
+  const previewDoc = useDebounced(doc, PREVIEW_DELAY)
+
+  const selectedIndex = doc.scenes.findIndex((s) => s.id === selectedId)
+  const selected = doc.scenes[selectedIndex] as
+    (typeof doc.scenes)[number] | undefined
+
+  const addScene = (type: SceneType, asset?: AssetRow) => {
+    const scene = newScene(
+      type,
+      asset && {
+        id: asset.id,
+        duration:
+          asset.metadata.duration === undefined
+            ? undefined
+            : snapDown(asset.metadata.duration),
+      },
+    )
+    // New scenes go before a closing packshot, if there is one.
+    update((d) => {
+      const last = d.scenes.at(-1)
+      const at =
+        last?.type === 'packshot' && d.scenes.length > 1
+          ? d.scenes.length - 1
+          : d.scenes.length
+      const scenes = [...d.scenes]
+      scenes.splice(at, 0, scene)
+      return { ...d, scenes }
+    })
+    setSelectedId(scene.id)
+  }
+
+  const applyAsset = (use: 'box-art' | 'music', asset: AssetRow) => {
+    if (use === 'box-art') update((d) => ({ ...d, boxArtAssetId: asset.id }))
+    else {
+      update((d) => ({
+        ...d,
+        music: {
+          ...d.music,
+          source: {
+            type: asset.kind === 'audio' ? 'upload' : 'clip',
+            assetId: asset.id,
+          },
+        },
+      }))
+    }
+    void message.success(
+      use === 'box-art' ? 'Box art set' : `Music set to ${asset.originalName}`,
+    )
+  }
+
+  const removeAsset = async (asset: AssetRow) => {
+    update((d) => removeAssetReferences(d, asset.id))
+    try {
+      await deleteAsset({ data: { id: asset.id } })
+      removed(asset.id)
+    } catch {
+      void message.error(`Couldn’t delete ${asset.originalName}`)
+    }
+  }
+
+  const tag = statusTags[status]
+
+  return (
+    <div className="min-h-screen bg-neutral-100">
+      <header className="flex items-center gap-4 border-b border-neutral-200 bg-white px-6 py-3">
+        <Link to="/" className="text-neutral-500" aria-label="All projects">
+          <ArrowLeftOutlined />
+        </Link>
+        <h1 className="m-0 flex-1 truncate text-lg font-semibold">
+          {doc.title || 'Untitled game'}
+        </h1>
+        <Tooltip title={error}>
+          <Tag color={tag.color}>{tag.label}</Tag>
+        </Tooltip>
+        <Link
+          to="/projects/$projectId/preview"
+          params={{ projectId: project.id }}
+          target="_blank"
+        >
+          <EyeOutlined /> Full preview
+        </Link>
+      </header>
+
+      <main className="grid gap-4 p-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_380px]">
+        <Card size="small" className="self-start">
+          <Tabs
+            items={[
+              {
+                key: 'details',
+                label: 'Details',
+                children: (
+                  <DetailsForm doc={doc} assets={assets} update={update} />
+                ),
+              },
+              {
+                key: 'assets',
+                label: `Assets (${assets.length})`,
+                children: (
+                  <AssetBin
+                    projectId={project.id}
+                    assets={assets}
+                    onUploaded={added}
+                    onAddScene={addScene}
+                    onUse={applyAsset}
+                    onDelete={(asset) => void removeAsset(asset)}
+                  />
+                ),
+              },
+              {
+                key: 'music',
+                label: 'Music & splash',
+                children: (
+                  <MusicPanel doc={doc} assets={assets} update={update} />
+                ),
+              },
+            ]}
+          />
+        </Card>
+
+        <div className="flex min-w-0 flex-col gap-4">
+          <Card size="small">
+            <CompositionPlayer doc={previewDoc} assets={compositionAssets} />
+          </Card>
+          <Card size="small">
+            <SceneList
+              doc={doc}
+              assets={assetMap}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+              onMove={(from, to) => update((d) => moveScene(d, from, to))}
+              onAdd={(type) => addScene(type)}
+            />
+          </Card>
+        </div>
+
+        <Card size="small" className="self-start lg:col-span-2 xl:col-span-1">
+          {selected ? (
+            <SceneInspector
+              key={selected.id}
+              scene={selected}
+              index={selectedIndex}
+              assets={assets}
+              onChange={(scene) =>
+                update((d) => ({
+                  ...d,
+                  scenes: d.scenes.map((s) => (s.id === scene.id ? scene : s)),
+                }))
+              }
+              onDelete={() => {
+                update((d) => removeScene(d, selected.id))
+                setSelectedId(
+                  doc.scenes[selectedIndex + 1]?.id ??
+                    doc.scenes[selectedIndex - 1]?.id,
+                )
+              }}
+            />
+          ) : (
+            <p className="m-0 text-neutral-500">Select a scene to edit it.</p>
+          )}
+        </Card>
+      </main>
+    </div>
+  )
+}

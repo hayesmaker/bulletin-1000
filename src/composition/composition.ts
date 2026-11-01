@@ -123,7 +123,9 @@ export function createComposition(
     tl.set(c.el, { autoAlpha: 1 }, c.start)
     tl.set(c.el, { autoAlpha: 0 }, c.end)
   }
-  tl.seek(0)
+  // A fresh paused timeline doesn't render zero-length tweens at time 0, so
+  // frame 0 would be blank. Play through once and back to apply them.
+  tl.seek(tl.duration(), false).seek(0, false)
 
   const music = schedule.music
     ? new Audio(assets.get(schedule.music.assetId)?.url)
