@@ -10,7 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as MediaAssetIdVariantRouteImport } from './routes/media/$assetId/$variant'
+import { Route as RenderProjectIdRouteImport } from './routes/render/$projectId'
+import { Route as ProjectsProjectIdPreviewRouteImport } from './routes/projects/$projectId/preview'
 import { Route as ApiProjectsProjectIdAssetsRouteImport } from './routes/api/projects/$projectId/assets'
 
 const IndexRoute = IndexRouteImport.update({
@@ -18,11 +19,17 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MediaAssetIdVariantRoute = MediaAssetIdVariantRouteImport.update({
-  id: '/media/$assetId/$variant',
-  path: '/media/$assetId/$variant',
+const RenderProjectIdRoute = RenderProjectIdRouteImport.update({
+  id: '/render/$projectId',
+  path: '/render/$projectId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectsProjectIdPreviewRoute =
+  ProjectsProjectIdPreviewRouteImport.update({
+    id: '/projects/$projectId/preview',
+    path: '/projects/$projectId/preview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiProjectsProjectIdAssetsRoute =
   ApiProjectsProjectIdAssetsRouteImport.update({
     id: '/api/projects/$projectId/assets',
@@ -32,36 +39,48 @@ const ApiProjectsProjectIdAssetsRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/media/$assetId/$variant': typeof MediaAssetIdVariantRoute
+  '/render/$projectId': typeof RenderProjectIdRoute
+  '/projects/$projectId/preview': typeof ProjectsProjectIdPreviewRoute
   '/api/projects/$projectId/assets': typeof ApiProjectsProjectIdAssetsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/media/$assetId/$variant': typeof MediaAssetIdVariantRoute
+  '/render/$projectId': typeof RenderProjectIdRoute
+  '/projects/$projectId/preview': typeof ProjectsProjectIdPreviewRoute
   '/api/projects/$projectId/assets': typeof ApiProjectsProjectIdAssetsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/media/$assetId/$variant': typeof MediaAssetIdVariantRoute
+  '/render/$projectId': typeof RenderProjectIdRoute
+  '/projects/$projectId/preview': typeof ProjectsProjectIdPreviewRoute
   '/api/projects/$projectId/assets': typeof ApiProjectsProjectIdAssetsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/media/$assetId/$variant' | '/api/projects/$projectId/assets'
+    | '/'
+    | '/render/$projectId'
+    | '/projects/$projectId/preview'
+    | '/api/projects/$projectId/assets'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/media/$assetId/$variant' | '/api/projects/$projectId/assets'
+  to:
+    | '/'
+    | '/render/$projectId'
+    | '/projects/$projectId/preview'
+    | '/api/projects/$projectId/assets'
   id:
     | '__root__'
     | '/'
-    | '/media/$assetId/$variant'
+    | '/render/$projectId'
+    | '/projects/$projectId/preview'
     | '/api/projects/$projectId/assets'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  MediaAssetIdVariantRoute: typeof MediaAssetIdVariantRoute
+  RenderProjectIdRoute: typeof RenderProjectIdRoute
+  ProjectsProjectIdPreviewRoute: typeof ProjectsProjectIdPreviewRoute
   ApiProjectsProjectIdAssetsRoute: typeof ApiProjectsProjectIdAssetsRoute
 }
 
@@ -74,11 +93,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/media/$assetId/$variant': {
-      id: '/media/$assetId/$variant'
-      path: '/media/$assetId/$variant'
-      fullPath: '/media/$assetId/$variant'
-      preLoaderRoute: typeof MediaAssetIdVariantRouteImport
+    '/render/$projectId': {
+      id: '/render/$projectId'
+      path: '/render/$projectId'
+      fullPath: '/render/$projectId'
+      preLoaderRoute: typeof RenderProjectIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/projects/$projectId/preview': {
+      id: '/projects/$projectId/preview'
+      path: '/projects/$projectId/preview'
+      fullPath: '/projects/$projectId/preview'
+      preLoaderRoute: typeof ProjectsProjectIdPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/projects/$projectId/assets': {
@@ -93,7 +119,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  MediaAssetIdVariantRoute: MediaAssetIdVariantRoute,
+  RenderProjectIdRoute: RenderProjectIdRoute,
+  ProjectsProjectIdPreviewRoute: ProjectsProjectIdPreviewRoute,
   ApiProjectsProjectIdAssetsRoute: ApiProjectsProjectIdAssetsRoute,
 }
 export const routeTree = rootRouteImport

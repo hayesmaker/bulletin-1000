@@ -34,6 +34,7 @@ The visual and structural reference for the video template (promo structure, spl
 - `npm test`: run the Vitest suite
 - `npm run db:generate`: generate a migration in `drizzle/` after changing `src/server/db/schema.ts` (migrations are applied automatically when the server opens the database)
 - `npm run db:studio`: browse the database
+- `npm run seed:demo`: create a demo project to preview (`-- --box art.png --clip a.mp4 --clip b.mp4 --music tune.mp3 --splash 1989`; anything not given is generated with ffmpeg)
 
 Imports can use the `#/*` alias for `src/*`.
 
@@ -43,7 +44,10 @@ Imports can use the `#/*` alias for `src/*`.
 - `src/server/`: server code. `*.server.ts` files are server-only (Start import protection). `*.functions.ts` files hold `createServerFn` wrappers and are safe to import from routes.
 - `src/server/db/`: Drizzle schema and the database client.
 - `src/server/assets.server.ts`: upload handling and the background processing queue. `ffmpeg.server.ts` wraps ffmpeg/ffprobe.
-- `src/routes/api/` and `src/routes/media/`: raw HTTP server routes (file uploads and media streaming). Media URLs must not end in a file extension, or Nitro's dev server treats them as static files and never reaches the route.
+- `src/routes/api/`: raw HTTP server routes (file uploads).
+- `src/server/media.handler.ts`: serves `/media/:assetId/(file|thumb)`. It's a **Nitro handler registered in `vite.config.ts`**, not a TanStack route. Nitro's dev server treats browser media requests (`Sec-Fetch-Dest: image/video/audio`, or URLs ending in a file extension) as static files and only passes them to Nitro-level handlers. Anything loaded by `<img>`, `<video>` or `<audio>` must be served this way.
+- `src/composition/`: the video template. `theme.ts` (all fonts, colours, layout and timings), `schedule.ts` (pure timing: project doc → scene and audio times, in whole frames), `scenes.ts` (DOM per scene type) and `composition.ts` (GSAP timeline, preview media sync, `renderFrame` for export).
+- `src/routes/projects/$projectId/preview.tsx`: preview player. `src/routes/render/$projectId.tsx`: bare 1440×1080 stage for the exporter, exposing `window.composition` once ready.
 - `drizzle/`: generated SQL migrations. Commit them; don't edit them by hand.
 - `DATA_DIR` (default `./data`, gitignored) holds `bulletin.db` and `media/<projectId>/<assetId>/`.
 
