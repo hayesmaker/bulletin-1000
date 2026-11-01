@@ -10,6 +10,11 @@ The plan, decisions and task checklists live in [`docs/project-plan.md`](docs/pr
 
 The visual and structural reference for the video template (promo structure, splash, packshot and caption styles) is in [`docs/style-guide.md`](docs/style-guide.md). Read it before working on the composition.
 
+## Git rules
+
+- As an llm agent you will never push or offer to push code to master.
+- All code will be reviewed by me, the author. You can Push PRs for me to review.
+
 ## Tech stack
 
 - TanStack Start / Router (on Nitro, built with Vite)
