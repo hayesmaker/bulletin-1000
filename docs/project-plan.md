@@ -29,6 +29,7 @@ Generated videos should be downloadable and editable later.
 Updated 2026-11-01.
 
 - **Rendering: hybrid.** Live preview in the browser (a GSAP timeline driving a canvas/DOM composition). Final export on the server via **headless Chromium replay**: Playwright loads the same composition, steps the GSAP timeline frame by frame, and pipes the frames to ffmpeg, which muxes in the audio. One composition codebase serves both preview and export.
+- **Database: SQLite via Drizzle ORM + better-sqlite3** (decided 2026-11-01). A project is stored as one validated JSON document (`src/lib/project.ts`), with assets in their own table. Migrations live in `drizzle/` and are applied on startup.
 - **Hosting: self-hosted VPS.** SQLite on local disk. Uploaded assets and rendered videos go on local disk under a configurable media directory. ffmpeg and Chromium are installed on the box.
 - **Video format: short promo (30–90s), one game per video**, following the structure of the original Bulletin 1000 promos (see [style-guide.md](style-guide.md)).
 - **Captions first, narration later.** Like the originals, the MVP relies on on-screen captions and game audio. ElevenLabs TTS (voiceover only, no on-screen presenter) moves to a later milestone.
@@ -57,18 +58,20 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 
 ### 1. Data layer
 
-- [ ] Add SQLite with Drizzle ORM + better-sqlite3, and set up migrations
-- [ ] Add a configurable data/media directory (env var)
-- [ ] Define the project schema: a project is a JSON document, so videos stay re-editable. It holds:
-  - [ ] game title and publisher
-  - [ ] price/platform pairs
-  - [ ] box art
-  - [ ] packshot colour
-  - [ ] splash choice (none / 1985 / 1989)
-  - [ ] music track (uploaded file or a source clip, start offset, start point in the timeline)
-  - [ ] an ordered scene list: each scene has a type, an asset, trim points or a duration, overlay captions, and a "keep clip audio" switch
-- [ ] Define the asset schema: file path, kind, probed metadata, thumbnail
-- [ ] Write server functions for project CRUD
+- [x] Add SQLite with Drizzle ORM + better-sqlite3, and set up migrations
+- [x] Add a configurable data/media directory (env var)
+- [x] Define the project schema: a project is a JSON document, so videos stay re-editable. It holds:
+  - [x] game title and publisher
+  - [x] price/platform pairs
+  - [x] box art
+  - [x] packshot colour
+  - [x] splash choice (none / 1985 / 1989)
+  - [x] music track (uploaded file or a source clip, start offset, start point in the timeline)
+  - [x] an ordered scene list: each scene has a type, an asset, trim points or a duration, overlay captions, and a "keep clip audio" switch
+- [x] Define the asset schema: file path, kind, probed metadata, thumbnail
+- [x] Write server functions for project CRUD
+- [x] Add Vitest, with tests for the project schema and project queries
+- [ ] Check that asset IDs referenced in a project doc belong to that project (once uploads exist)
 
 ### 2. Upload pipeline
 
