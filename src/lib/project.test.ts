@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_DUCKING,
+  MAX_SPLASH_HOLD,
   assetIdsInDoc,
   createProjectDoc,
   moveScene,
@@ -8,8 +9,11 @@ import {
   projectDocSchema,
   removeAssetReferences,
   removeScene,
+  scenesNeedingVoice,
+  voiceClipIdsInDoc,
+  voiceLineStatus,
 } from './project'
-import type { ProjectDoc, SceneType } from './project'
+import type { ProjectDoc, Scene, SceneType } from './project'
 
 const uuid = () => crypto.randomUUID()
 
@@ -179,5 +183,67 @@ describe('editing helpers', () => {
     expect(removeAssetReferences(noLogo, jingle).splashJingle).toEqual({
       type: 'built-in',
     })
+  })
+})
+
+describe('voice lines', () => {
+  const clipId = 'f'.repeat(64)
+  const base = createProjectDoc('Gyroscope')
+  const docWith = (voiceLine: Scene['voiceLine'], voiceId = 'v1') => {
+    const scene = { ...newScene('packshot'), voiceLine }
+    return {
+      doc: {
+        ...base,
+        narration: { ...base.narration, voiceId },
+        scenes: [scene],
+      },
+      scene,
+    }
+  }
+
+  it('knows when a line needs generating', () => {
+    const status = (line: Scene['voiceLine'], voiceId?: string) => {
+      const { doc, scene } = docWith(line, voiceId)
+      return voiceLineStatus(doc, scene)
+    }
+    const clip = { id: clipId, duration: 2, text: 'Out now', voiceId: 'v1' }
+    expect(status(null)).toBe('none')
+    expect(status({ text: '  ', offset: 0, clip: null })).toBe('none')
+    expect(status({ text: 'Out now', offset: 0, clip: null })).toBe(
+      'needs-generating',
+    )
+    expect(status({ text: ' Out now ', offset: 0, clip })).toBe('ready')
+    expect(status({ text: 'Out now!', offset: 0, clip })).toBe(
+      'needs-generating',
+    )
+    expect(status({ text: 'Out now', offset: 0, clip }, 'v2')).toBe(
+      'needs-generating',
+    )
+    const { doc } = docWith({ text: 'Out now', offset: 0, clip })
+    expect(voiceClipIdsInDoc(doc)).toEqual(new Set([clipId]))
+    expect(scenesNeedingVoice(doc)).toEqual([])
+  })
+
+  it('fills narration defaults into older docs', () => {
+    const { narration: _, ...old } = base
+    const parsed = projectDocSchema.parse({
+      ...old,
+      scenes: old.scenes.map(({ voiceLine: __, ...s }) => s),
+    })
+    expect(parsed.narration).toEqual({
+      voiceId: null,
+      volume: 1,
+      duckMusic: true,
+    })
+    expect(parsed.scenes[0].voiceLine).toBeNull()
+  })
+
+  it('gives older docs no splash hold, and caps it', () => {
+    const { splashHold: _, ...old } = base
+    expect(projectDocSchema.parse(old).splashHold).toBe(0)
+    expect(
+      projectDocSchema.safeParse({ ...base, splashHold: MAX_SPLASH_HOLD + 1 })
+        .success,
+    ).toBe(false)
   })
 })

@@ -10,6 +10,7 @@ import {
   listProjects,
   removeProject,
   saveProjectDoc,
+  unknownVoiceClipIds,
 } from '#/server/projects.server'
 
 // No auth yet (MVP). Once Clerk lands, every handler here must check the
@@ -39,6 +40,9 @@ export const updateProject = createServerFn({ method: 'POST' })
     const db = getDb()
     if (foreignAssetIds(db, data.id, data.doc).length > 0) {
       throw new Error('The project refers to assets it does not own')
+    }
+    if (unknownVoiceClipIds(db, data.doc).length > 0) {
+      throw new Error('The project refers to voice clips that don’t exist')
     }
     const project = saveProjectDoc(db, data.id, data.doc)
     if (!project) throw notFound()

@@ -7,13 +7,14 @@ import { stage } from '#/composition/theme'
 import type { ProjectDoc } from '#/lib/project'
 import { listAssets } from '#/server/assets.server'
 import { captureFrames } from '#/server/capture.server'
-import { mediaDir } from '#/server/config.server'
+import { dataDir, mediaDir } from '#/server/config.server'
 import { renders } from '#/server/db/schema'
 import type { RenderRow } from '#/server/db/schema'
 import type { Db } from '#/server/db/client.server'
 import { spawnFfmpeg } from '#/server/ffmpeg.server'
 import { builtInJinglePath } from '#/server/jingle.server'
 import { BUILT_IN_JINGLE, buildAudioMix } from '#/server/mix.server'
+import { findVoiceClip } from '#/server/tts.server'
 
 // Video export. A render copies the project doc, waits its turn in a serial
 // queue, then headless Chrome steps the composition frame by frame into a
@@ -93,6 +94,12 @@ export async function runRender(db: Db, id: string, baseUrl: string) {
     )
     if (schedule.jingle && !schedule.jingle.assetId) {
       files.set(BUILT_IN_JINGLE, await builtInJinglePath())
+    }
+    for (const cue of schedule.narration) {
+      const clip = findVoiceClip(db, cue.clipId)
+      if (!clip)
+        throw new Error('A voice line’s audio is missing: regenerate it')
+      files.set(cue.clipId, path.join(dataDir(), clip.path))
     }
     const mix = buildAudioMix(schedule, files, 1)
     await fsp.mkdir(path.dirname(partial), { recursive: true })

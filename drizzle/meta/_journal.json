@@ -15,6 +15,13 @@
       "when": 1793537850539,
       "tag": "0001_renders",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793547399630,
+      "tag": "0002_voice_clips",
+      "breakpoints": true
     }
   ]
 }

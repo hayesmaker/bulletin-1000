@@ -68,6 +68,8 @@ const schedule: Schedule = {
     },
   ],
   jingle: null,
+  narration: [],
+  narrationVolume: 1,
 }
 
 describe('buildAudioMix', () => {
@@ -119,6 +121,40 @@ describe('buildAudioMix', () => {
     )
     expect(mix.inputArgs.slice(-4)).toEqual(['-t', '7', '-i', '/jingle.wav'])
     expect(mix.filter).toContain('[jingle]amix=inputs=2')
+  })
+
+  it('mixes narration at its volume, from each line’s start', () => {
+    ffmpeg(
+      '-f', 'lavfi', '-i', 'aevalsrc=0.4|0.4:d=2',
+      path.join(tmp, 'voice.wav'),
+    ) // prettier-ignore
+    const mix = buildAudioMix(
+      {
+        ...schedule,
+        music: null,
+        clipAudio: [],
+        narration: [{ sceneId: 's', clipId: 'line', start: 3, end: 4.5 }],
+        narrationVolume: 0.5,
+      },
+      new Map([['line', path.join(tmp, 'voice.wav')]]),
+      0,
+    )
+    const raw = ffmpeg(
+      ...mix.inputArgs,
+      '-filter_complex', mix.filter,
+      '-map', mix.output, '-f', 'f32le', '-',
+    ) // prettier-ignore
+    const samples = new Float32Array(
+      raw.buffer,
+      raw.byteOffset,
+      raw.byteLength / 4,
+    )
+    const at = (t: number) => samples[Math.round(t * SAMPLE_RATE) * 2]
+    expect(at(2.9)).toBe(0)
+    expect(at(3.5)).toBeCloseTo(0.2, 2)
+    expect(at(4.4)).toBeCloseTo(0.2, 2)
+    // Cut at the cue's end.
+    expect(at(4.7)).toBe(0)
   })
 
   it('is a silent bed when there is no audio', () => {

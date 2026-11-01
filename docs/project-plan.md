@@ -33,6 +33,14 @@ Updated 2026-11-01.
 - **Hosting: self-hosted VPS.** SQLite on local disk. Uploaded assets and rendered videos go on local disk under a configurable media directory. ffmpeg and Chromium are installed on the box.
 - **Video format: short promo (30–90s), one game per video**, following the structure of the original Bulletin 1000 promos (see [style-guide.md](style-guide.md)).
 - **Captions first, narration later.** Like the originals, the MVP relies on on-screen captions and game audio. ElevenLabs TTS (voiceover only, no on-screen presenter) moves to a later milestone.
+- **Narration (decided 2026-11-01):**
+  - Each scene can carry one voice line, starting at an offset into the scene. This replaces the earlier "narration starts with the music" idea.
+  - Card scenes stretch to fit their line, plus a 0.5s tail. On gameplay scenes a longer line runs on over the cut, like a real voiceover, and the editor warns about overlapping lines.
+  - Lines are only generated when the user asks (Generate / Generate all), never automatically, to protect credits. Export is blocked until every line is up to date.
+  - Generated audio is cached globally by a hash of provider, model, voice and text (`voice_clips` table, `DATA_DIR/voice/`), so unchanged lines cost nothing.
+  - Limits: a global daily character cap (`TTS_DAILY_CHARACTERS`, default 20,000) and one request at a time, plus the key's own character limit set in ElevenLabs. Per-user limits come with auth.
+  - The music ducks under narration at the project's ducking level.
+  - Without a key, `TTS_FAKE=1` gives a stand-in voice (tones) for development and tests.
 - **Scene timing:** a gameplay scene lasts as long as its trimmed clip. Card scenes (packshot, title, still screenshot) have a duration the user sets, with sensible defaults.
 - **Audio (MVP):**
   - One **continuous music track** (usually the game's own music) plays without restarting at each scene.
@@ -135,15 +143,20 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [x] 1989 ident: lit 3D shapes with floor shadows, chrome "Bulletin 1000" lettering with a reflection and "VISUAL COMMUNICATIONS" between rules, on a blue gradient. It fades in over 0.4s and out at 6.36–6.92s (7s), as in the original.
 - [x] Built-in 1989 jingle: an original synth ident (D major, ~150 bpm), synthesised deterministically in `src/server/jingle.server.ts`, cached under `DATA_DIR/generated/` and served at `/audio/jingle-1989`
 - [x] User options: splash logo image instead of the lettering; splash sound as built-in, none or an uploaded file
+- [x] Splash length: hold the splash on its last pose for up to 3s longer (Audio tab slider). The 1989 fade-out moves later; the jingle keeps its own length
 - [ ] Optional VHS softness on the splash (effects milestone)
 
 ## Later milestones
 
-- [ ] ElevenLabs TTS narration
-  - server-side API key, curated voices, rate limiting
-  - audio cached by a hash of text and voice
-  - each scene can have an optional voice line that extends the scene's length
-  - by default narration starts with the music at the first gameplay scene; the user can change this
+- [x] ElevenLabs TTS narration
+  - [x] server-side API key (`ELEVENLABS_API_KEY`), curated voices (`ELEVENLABS_VOICES`, or every voice on the account), daily character cap and a serial request queue
+  - [x] audio cached by a hash of provider, model, voice and text
+  - [x] a voice line on any scene, with a start offset; card scenes stretch to fit, lines on gameplay run over the cut
+  - [x] narration voice, volume and "lower the music under narration" in the Audio tab; Generate / Generate all; stale lines flagged in the scene list and inspector, and export blocked until they're regenerated
+  - [x] preview playback and export mixing
+  - [ ] Per-line voice settings (speed, stability) or a per-line voice
+  - [ ] Show the account's remaining ElevenLabs quota (needs the `user_read` permission)
+  - [ ] Delete cached voice clips nothing uses (part of the retention question)
 - [ ] 16:9 and 9:16 layouts
 - [ ] Filter effects (CRT, VHS grain, scanlines, colour bleed), most likely as WebGL shaders so preview and export match
 - [ ] Clerk auth and the My Videos page (list, re-edit, download)

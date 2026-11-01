@@ -46,3 +46,6 @@ export function renderFileUrl(renderId: string, download = false) {
 
 // The built-in 1989 splash jingle (served by src/server/jingle.handler.ts).
 export const BUILT_IN_JINGLE_URL = '/audio/jingle-1989'
+
+// A generated narration clip (src/server/voice.handler.ts).
+export const voiceClipUrl = (clipId: string) => `/voice/${clipId}`

@@ -1,5 +1,5 @@
 import { gsap } from 'gsap'
-import { BUILT_IN_JINGLE_URL } from '#/lib/assets'
+import { BUILT_IN_JINGLE_URL, voiceClipUrl } from '#/lib/assets'
 import type { ProjectDoc } from '#/lib/project'
 import { buildSchedule, musicGain } from './schedule'
 import type { Schedule } from './schedule'
@@ -103,7 +103,7 @@ export function createComposition(
     captions.push(...built.captions)
     images.push(...built.images)
     if (built.video) videos.push(built.video)
-    built.animate?.(tl, item.start)
+    built.animate?.(tl, item.start, item.end)
 
     if (item.dissolve > 0) {
       tl.fromTo(
@@ -143,6 +143,12 @@ export function createComposition(
       )
     : null
   if (jingle) jingle.preload = 'auto'
+  const voices = schedule.narration.map((cue) => {
+    const el = new Audio(voiceClipUrl(cue.clipId))
+    el.preload = 'auto'
+    el.volume = Math.max(0, Math.min(1, schedule.narrationVolume))
+    return { el, cue }
+  })
 
   // Keeps an audio element playing in step with time t.
   const syncAudio = (
@@ -210,6 +216,7 @@ export function createComposition(
       music.volume = Math.max(0, Math.min(1, musicGain(cue, t)))
     }
     if (jingle && jingleCue) syncAudio(jingle, jingleCue, 0, t, playing)
+    for (const v of voices) syncAudio(v.el, v.cue, 0, t, playing)
   }
 
   // Export only: each video is shown through a canvas copy of its frame.
@@ -255,6 +262,7 @@ export function createComposition(
     }
     music?.pause()
     jingle?.pause()
+    for (const v of voices) v.el.pause()
     stageEl.remove()
   }
 

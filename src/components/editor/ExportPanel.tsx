@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { App, Button, Popconfirm, Progress, Tag } from 'antd'
+import { Alert, App, Button, Popconfirm, Progress, Tag } from 'antd'
 import {
   DeleteOutlined,
   DownloadOutlined,
@@ -18,6 +18,10 @@ interface Props {
   projectId: string
   // False while the doc has unsaved changes: renders use the saved doc.
   saved: boolean
+  // Voice lines that must be generated before an export.
+  voiceLinesToGenerate: number
+  generatingVoice: boolean
+  onGenerateVoice: () => void
 }
 
 const POLL_INTERVAL = 1000
@@ -35,7 +39,13 @@ const statusTags: Record<
 const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
 // Renders the project to MP4 and lists its exports.
-export function ExportPanel({ projectId, saved }: Props) {
+export function ExportPanel({
+  projectId,
+  saved,
+  voiceLinesToGenerate,
+  generatingVoice,
+  onGenerateVoice,
+}: Props) {
   const { message } = App.useApp()
   const [renders, setRenders] = useState<RenderRow[]>([])
   const [starting, setStarting] = useState(false)
@@ -61,8 +71,10 @@ export function ExportPanel({ projectId, saved }: Props) {
     try {
       await startRender({ data: { projectId } })
       await refresh()
-    } catch {
-      void message.error('Couldn’t start the render')
+    } catch (e) {
+      void message.error(
+        e instanceof Error ? e.message : 'Couldn’t start the render',
+      )
     } finally {
       setStarting(false)
     }
@@ -70,11 +82,27 @@ export function ExportPanel({ projectId, saved }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      {voiceLinesToGenerate > 0 && (
+        <Alert
+          type="warning"
+          showIcon
+          title={`${voiceLinesToGenerate} voice ${voiceLinesToGenerate === 1 ? 'line needs' : 'lines need'} generating before you can export.`}
+          action={
+            <Button
+              size="small"
+              loading={generatingVoice}
+              onClick={onGenerateVoice}
+            >
+              Generate
+            </Button>
+          }
+        />
+      )}
       <div>
         <Button
           type="primary"
           loading={starting}
-          disabled={!saved}
+          disabled={!saved || voiceLinesToGenerate > 0}
           onClick={() => void start()}
         >
           Render video

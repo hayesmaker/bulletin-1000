@@ -2,6 +2,7 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestUrl } from '@tanstack/react-start/server'
 import { z } from 'zod'
+import { scenesNeedingVoice } from '#/lib/project'
 import { getDb } from '#/server/db/client.server'
 import { findProject } from '#/server/projects.server'
 import {
@@ -35,6 +36,12 @@ export const startRender = createServerFn({ method: 'POST' })
     const db = renderQueue()
     const project = findProject(db, data.projectId)
     if (!project) throw notFound()
+    const stale = scenesNeedingVoice(project.doc).length
+    if (stale > 0) {
+      throw new Error(
+        `${stale} voice ${stale === 1 ? 'line needs' : 'lines need'} generating before export`,
+      )
+    }
     const render = insertRender(db, project.id, project.doc)
     void enqueueRender(db, render.id, baseUrl())
     return render

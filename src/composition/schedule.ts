@@ -1,3 +1,4 @@
+import { voiceLineStatus } from '#/lib/project'
 import type { ProjectDoc, Scene } from '#/lib/project'
 import { stage, timing } from './theme'
 
@@ -68,12 +69,23 @@ export interface JingleCue {
   end: number
 }
 
+// A generated voice line. Lines run on past the end of their scene if
+// they're longer than it (except card scenes, which stretch to fit).
+export interface NarrationCue {
+  sceneId: string
+  clipId: string
+  start: number
+  end: number
+}
+
 export interface Schedule {
   items: ScheduledItem[]
   duration: number
   music: MusicCue | null
   clipAudio: ClipAudioCue[]
   jingle: JingleCue | null
+  narration: NarrationCue[]
+  narrationVolume: number
 }
 
 export const toFrames = (seconds: number) => Math.round(seconds * stage.fps)
@@ -82,13 +94,40 @@ export const snap = (seconds: number) => toFrames(seconds) / stage.fps
 export const snapDown = (seconds: number) =>
   Math.floor(seconds * stage.fps + 1e-6) / stage.fps
 
-function sceneDuration(scene: Scene, assets: Map<string, AssetInfo>) {
-  if (scene.type !== 'gameplay') return scene.duration
+// Card scenes stretch to hold their voice line, plus this much.
+export const VOICE_LINE_TAIL = 0.5
+
+// The generated line's audio, if it's up to date.
+function readyLine(doc: ProjectDoc, scene: Scene) {
+  if (voiceLineStatus(doc, scene) !== 'ready') return undefined
+  const line = scene.voiceLine!
+  return { offset: line.offset, clip: line.clip! }
+}
+
+function sceneDuration(
+  doc: ProjectDoc,
+  scene: Scene,
+  assets: Map<string, AssetInfo>,
+) {
+  if (scene.type !== 'gameplay') {
+    const line = readyLine(doc, scene)
+    return line
+      ? Math.max(
+          scene.duration,
+          line.offset + line.clip.duration + VOICE_LINE_TAIL,
+        )
+      : scene.duration
+  }
   const clip = scene.assetId ? assets.get(scene.assetId) : undefined
   const trimOut = clip?.duration
     ? Math.min(scene.trimOut, clip.duration)
     : scene.trimOut
   return Math.max(trimOut - scene.trimIn, 1 / stage.fps)
+}
+
+// A splash's length: its own, plus the time it's held for.
+export function splashLength(splash: '1985' | '1989', hold: number) {
+  return snap(timing.splash[splash] + hold)
 }
 
 export function buildSchedule(
@@ -105,14 +144,14 @@ export function buildSchedule(
   if (doc.splash !== 'none') {
     entries.push({
       item: { kind: 'splash', id: 'splash', splash: doc.splash },
-      length: timing.splash[doc.splash],
+      length: splashLength(doc.splash, doc.splashHold),
       transition: 'cut',
     })
   }
   for (const scene of doc.scenes) {
     entries.push({
       item: { kind: 'scene', id: scene.id, scene },
-      length: sceneDuration(scene, assets),
+      length: sceneDuration(doc, scene, assets),
       transition: scene.transitionIn,
     })
   }
@@ -137,13 +176,50 @@ export function buildSchedule(
   const duration = items.at(-1)?.end ?? 0
 
   const clipAudio = clipAudioCues(items, assets, doc.music.ducking.level)
+  const narration = narrationCues(doc, items, duration)
+  const narrationDucks: DuckWindow[] = doc.narration.duckMusic
+    ? narration.map((c) => ({
+        start: c.start,
+        end: c.end,
+        level: doc.music.ducking.level,
+      }))
+    : []
   return {
     items,
     duration,
-    music: musicCue(doc, items, assets, duration, clipAudio),
+    music: musicCue(doc, items, assets, duration, clipAudio, narrationDucks),
     clipAudio,
     jingle: jingleCue(doc, items, assets, duration),
+    narration,
+    narrationVolume: doc.narration.volume,
   }
+}
+
+function narrationCues(
+  doc: ProjectDoc,
+  items: ScheduledItem[],
+  duration: number,
+): NarrationCue[] {
+  return items.flatMap((item) => {
+    if (item.kind !== 'scene') return []
+    const line = readyLine(doc, item.scene)
+    if (!line) return []
+    const start = snap(item.start + line.offset)
+    const end = Math.min(start + line.clip.duration, duration)
+    if (end <= start) return []
+    return [{ sceneId: item.id, clipId: line.clip.id, start, end }]
+  })
+}
+
+// Voice lines that overlap the next one (which starts before it ends).
+export function narrationOverlaps(schedule: Schedule) {
+  const cues = [...schedule.narration].sort((a, b) => a.start - b.start)
+  return cues.flatMap((cue, i) =>
+    cues
+      .slice(i + 1)
+      .filter((next) => next.start < cue.end)
+      .map((next) => ({ first: cue.sceneId, second: next.sceneId })),
+  )
 }
 
 function musicCue(
@@ -152,6 +228,7 @@ function musicCue(
   assets: Map<string, AssetInfo>,
   duration: number,
   clipAudio: ClipAudioCue[],
+  extraDucks: DuckWindow[],
 ): MusicCue | null {
   const { music } = doc
   const { startAt } = music
@@ -182,7 +259,17 @@ function musicCue(
     fadeOut: Math.min(timing.musicFadeOut, end - start),
     ducking: {
       ramp: music.ducking.ramp,
-      windows: duckWindows(clipAudio, music.ducking.ramp),
+      windows: duckWindows(
+        [
+          ...clipAudio.flatMap((c) =>
+            c.duckLevel === null
+              ? []
+              : [{ start: c.start, end: c.end, level: c.duckLevel }],
+          ),
+          ...extraDucks,
+        ],
+        music.ducking.ramp,
+      ),
     },
   }
 }
@@ -218,15 +305,16 @@ function jingleCue(
   }
 }
 
-// Clip audio windows that duck the music. Windows closer together than the
+// Windows that duck the music (kept clip audio and narration). Windows
+// closer together than the
 // ramp in and out are joined, so the music doesn't bob up between them:
 // merged when their levels match, otherwise the earlier one is stretched to
 // meet the next, and the music ramps from one level to the other.
-function duckWindows(clipAudio: ClipAudioCue[], ramp: number): DuckWindow[] {
+function duckWindows(wanted: DuckWindow[], ramp: number): DuckWindow[] {
   const windows: DuckWindow[] = []
-  // Cues are already in timeline order.
-  for (const { start, end, duckLevel: level } of clipAudio) {
-    if (level === null || level >= 1) continue
+  const sorted = [...wanted].sort((a, b) => a.start - b.start)
+  for (const { start, end, level } of sorted) {
+    if (level >= 1) continue
     const last = windows.at(-1)
     if (last && start <= last.end + 2 * ramp) {
       if (last.level === level) {

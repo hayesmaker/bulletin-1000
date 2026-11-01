@@ -29,6 +29,11 @@ const config = defineConfig({
           method: 'GET',
           handler: './src/server/jingle.handler.ts',
         },
+        {
+          route: '/voice/:clipId',
+          method: 'GET',
+          handler: './src/server/voice.handler.ts',
+        },
       ],
     }),
     tailwindcss(),
