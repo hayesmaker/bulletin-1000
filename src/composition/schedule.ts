@@ -39,14 +39,15 @@ export interface MusicCue {
   sourceOffset: number
   volume: number
   fadeOut: number
-  // The music drops to `level` × volume during each window, fading down
-  // over `ramp` seconds before it and back up after it.
-  ducking: { level: number; ramp: number; windows: TimeWindow[] }
+  // The music drops to the window's `level` × volume during each window,
+  // fading down over `ramp` seconds before it and back up after it.
+  ducking: { ramp: number; windows: DuckWindow[] }
 }
 
-export interface TimeWindow {
+export interface DuckWindow {
   start: number
   end: number
+  level: number
 }
 
 export interface ClipAudioCue {
@@ -56,7 +57,8 @@ export interface ClipAudioCue {
   end: number
   // Position in the clip at `start`.
   trimIn: number
-  duckMusic: boolean
+  // The music level under this clip, or null to leave the music alone.
+  duckLevel: number | null
 }
 
 // The splash sound. A null assetId is the built-in 1989 jingle.
@@ -134,7 +136,7 @@ export function buildSchedule(
   }
   const duration = items.at(-1)?.end ?? 0
 
-  const clipAudio = clipAudioCues(items, assets)
+  const clipAudio = clipAudioCues(items, assets, doc.music.ducking.level)
   return {
     items,
     duration,
@@ -179,7 +181,7 @@ function musicCue(
     volume: music.volume,
     fadeOut: Math.min(timing.musicFadeOut, end - start),
     ducking: {
-      ...music.ducking,
+      ramp: music.ducking.ramp,
       windows: duckWindows(clipAudio, music.ducking.ramp),
     },
   }
@@ -217,14 +219,23 @@ function jingleCue(
 }
 
 // Clip audio windows that duck the music. Windows closer together than the
-// ramp in and out are merged, so the music doesn't bob up between them.
-function duckWindows(clipAudio: ClipAudioCue[], ramp: number): TimeWindow[] {
-  const windows: TimeWindow[] = []
+// ramp in and out are joined, so the music doesn't bob up between them:
+// merged when their levels match, otherwise the earlier one is stretched to
+// meet the next, and the music ramps from one level to the other.
+function duckWindows(clipAudio: ClipAudioCue[], ramp: number): DuckWindow[] {
+  const windows: DuckWindow[] = []
   // Cues are already in timeline order.
-  for (const { start, end } of clipAudio.filter((c) => c.duckMusic)) {
+  for (const { start, end, duckLevel: level } of clipAudio) {
+    if (level === null || level >= 1) continue
     const last = windows.at(-1)
-    if (last && start <= last.end + 2 * ramp) last.end = Math.max(last.end, end)
-    else windows.push({ start, end })
+    if (last && start <= last.end + 2 * ramp) {
+      if (last.level === level) {
+        last.end = Math.max(last.end, end)
+        continue
+      }
+      last.end = Math.max(last.end, start)
+    }
+    windows.push({ start, end, level })
   }
   return windows
 }
@@ -236,15 +247,16 @@ export function musicGain(cue: MusicCue, t: number) {
   if (t < cue.start || t >= cue.end) return 0
   const fade =
     cue.fadeOut > 0 ? Math.min(1, Math.max(0, (cue.end - t) / cue.fadeOut)) : 1
-  const { level, windows } = cue.ducking
   const ramp = Math.max(cue.ducking.ramp, MIN_RAMP)
-  let depth = 0
-  for (const w of windows) {
+  // Each window pulls the music towards its level; the lowest pull wins.
+  let duck = 1
+  for (const w of cue.ducking.windows) {
     const rise = (t - (w.start - ramp)) / ramp
     const fall = (w.end + ramp - t) / ramp
-    depth = Math.max(depth, Math.min(1, Math.max(0, Math.min(rise, fall))))
+    const depth = Math.min(1, Math.max(0, Math.min(rise, fall)))
+    duck = Math.min(duck, 1 - (1 - w.level) * depth)
   }
-  return cue.volume * fade * (1 - (1 - level) * depth)
+  return cue.volume * fade * duck
 }
 
 // A zero ramp is treated as a very short one, so the curve stays continuous.
@@ -253,6 +265,7 @@ export const MIN_RAMP = 0.01
 function clipAudioCues(
   items: ScheduledItem[],
   assets: Map<string, AssetInfo>,
+  projectDuckLevel: number,
 ): ClipAudioCue[] {
   return items.flatMap((item) => {
     if (item.kind !== 'scene' || item.scene.type !== 'gameplay') return []
@@ -266,7 +279,9 @@ function clipAudioCues(
         start: item.start,
         end: item.end,
         trimIn: scene.trimIn,
-        duckMusic: scene.duckMusic,
+        duckLevel: scene.duckMusic
+          ? (scene.duckLevel ?? projectDuckLevel)
+          : null,
       },
     ]
   })

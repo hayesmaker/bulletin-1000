@@ -74,8 +74,10 @@ export const sceneSchema = z.discriminatedUnion('type', [
       trimIn: seconds,
       trimOut: seconds,
       keepClipAudio: z.boolean().default(false),
-      // Lower the music while this scene's clip audio plays.
+      // Lower the music while this scene's clip audio plays, to `duckLevel`
+      // (a fraction of the music volume) or, when null, the project's level.
       duckMusic: z.boolean().default(true),
+      duckLevel: z.number().min(0).max(1).nullable().default(null),
       captions: z.array(captionSchema).default([]),
     })
     .refine((s) => s.trimOut > s.trimIn, {
@@ -217,6 +219,7 @@ export function newScene(
         ),
         keepClipAudio: false,
         duckMusic: true,
+        duckLevel: null,
         captions: [],
       }
   }

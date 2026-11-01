@@ -111,8 +111,8 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [x] Splash picker and music track picker (source, start point, offset, volume)
 - [x] Embedded preview
 - [x] Fixed: frame 0 rendered blank until the timeline had moved
-- [ ] Jump the preview to the selected scene
-- [ ] Undo/redo
+- [x] Jump the preview to the selected scene (after any dissolve)
+- [x] Undo/redo: header buttons and Ctrl+Z / Ctrl+Shift+Z (text fields keep their own undo). Quick edits in one field or slider merge into one step; history holds 100 steps and isn't kept across reloads.
 
 ### 5. Export
 
@@ -126,8 +126,8 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [x] Render progress and status in the editor's Export drawer; deleting a render stops it
 - [x] Download link and in-page player for the finished MP4 (`/renders/:id/file`)
 - [x] Mix in the splash jingle
-- [ ] Per-scene ducking level (only on/off for now)
-- [ ] Faster capture: about 6 frames/s now (a 24s video takes about 1.5 min). Options: JPEG frames, CDP screenshots, or several pages rendering ranges in parallel.
+- [x] Per-scene ducking level: a scene can set its own music level, or follow the project's. Close windows with different levels meet, and the music ramps between them.
+- [x] Faster capture: lossless CDP screenshots with `optimizeForSpeed`, and several pages rendering in parallel (`RENDER_PAGES`, default half the cores up to 4). The 58s test video now exports in about 38s (was about 130s). Video frames are copied to a canvas in export, which made parallel capture byte-identical to one page.
 
 ### 6. Splash recreations
 

@@ -3,19 +3,20 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type { PricePlatform, ProjectDoc } from '#/lib/project'
 import type { AssetRow } from '#/server/db/schema'
 import { AssetSelect } from './AssetSelect'
+import type { UpdateDoc } from './useProjectDoc'
 
 interface Props {
   doc: ProjectDoc
   assets: AssetRow[]
-  update: (change: (doc: ProjectDoc) => ProjectDoc) => void
+  update: UpdateDoc
 }
 
 const MAX_PRICES = 8
 
 // Game details shown on the caption and packshot.
 export function DetailsForm({ doc, assets, update }: Props) {
-  const set = (fields: Partial<ProjectDoc>) =>
-    update((d) => ({ ...d, ...fields }))
+  const set = (fields: Partial<ProjectDoc>, merge?: string) =>
+    update((d) => ({ ...d, ...fields }), { merge })
   const setPrice = (index: number, fields: Partial<PricePlatform>) =>
     update((d) => ({
       ...d,
@@ -102,7 +103,9 @@ export function DetailsForm({ doc, assets, update }: Props) {
           disabledAlpha
           showText
           value={doc.packshotColour}
-          onChange={(c) => set({ packshotColour: c.toHexString() })}
+          onChange={(c) =>
+            set({ packshotColour: c.toHexString() }, 'packshot-colour')
+          }
         />
       </Form.Item>
     </Form>

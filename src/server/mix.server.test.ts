@@ -44,7 +44,13 @@ const music: MusicCue = {
   sourceOffset: 1,
   volume: 0.8,
   fadeOut: 1.5,
-  ducking: { level: 0.25, ramp: 0.5, windows: [{ start: 5, end: 8 }] },
+  ducking: {
+    ramp: 0.5,
+    windows: [
+      { start: 5, end: 8, level: 0.25 },
+      { start: 8, end: 9, level: 0.6 },
+    ],
+  },
 }
 
 const schedule: Schedule = {
@@ -58,7 +64,7 @@ const schedule: Schedule = {
       start: 5,
       end: 8,
       trimIn: 3,
-      duckMusic: true,
+      duckLevel: 0.25,
     },
   ],
   jingle: null,
@@ -90,12 +96,14 @@ describe('buildAudioMix', () => {
     const at = (t: number) => samples[Math.round(t * SAMPLE_RATE) * 2]
 
     expect(samples.length / 2 / SAMPLE_RATE).toBeCloseTo(12, 1)
-    for (const t of [1, 3, 4.75, 6, 8.25, 9.5, 11.25]) {
+    for (const t of [1, 3, 4.75, 6, 8.25, 8.5, 9.25, 9.5, 11.25]) {
       const clip = t >= 5 && t < 8 ? 0.25 : 0
       expect(at(t)).toBeCloseTo(0.5 * musicGain(music, t) + clip, 1)
     }
     expect(at(1)).toBe(0)
     expect(at(6)).toBeCloseTo(0.35, 2)
+    // The second window's own level: 0.5 × 0.8 × 0.6.
+    expect(at(8.75)).toBeCloseTo(0.24, 2)
   })
 
   it('adds the jingle at its start', () => {

@@ -36,6 +36,7 @@ const gameplay = (overrides: Partial<Scene> = {}): Scene =>
     trimOut: 8,
     keepClipAudio: false,
     duckMusic: true,
+    duckLevel: null,
     captions: [],
     transitionIn: 'cut',
     ...overrides,
@@ -149,7 +150,7 @@ describe('buildSchedule', () => {
         sourceOffset: 5,
         volume: 0.8,
         fadeOut: 1.5,
-        ducking: { ...DEFAULT_DUCKING, windows: [] },
+        ducking: { ramp: DEFAULT_DUCKING.ramp, windows: [] },
       })
     })
 
@@ -208,7 +209,7 @@ describe('buildSchedule', () => {
         start: 6,
         end: 12,
         trimIn: 2,
-        duckMusic: true,
+        duckLevel: DEFAULT_DUCKING.level,
       },
     ])
   })
@@ -237,7 +238,55 @@ describe('buildSchedule', () => {
         }),
         assets,
       )
-      expect(s.music?.ducking.windows).toEqual([{ start: 4, end: 16 }])
+      expect(s.music?.ducking.windows).toEqual([
+        { start: 4, end: 16, level: 0.25 },
+      ])
+    })
+
+    it('uses a scene’s own level, ramping between levels', () => {
+      const s = buildSchedule(
+        doc({
+          music: music(0.5),
+          scenes: [
+            first,
+            gameplay({ keepClipAudio: true }), // 4–10
+            gameplay({ keepClipAudio: true, duckLevel: 0.5 }), // 10–16
+            card('packshot', 4), // 16–20
+            gameplay({ keepClipAudio: true, duckLevel: 1 }), // 20–26
+          ],
+        }),
+        assets,
+      )
+      const cue = s.music!
+      // A level of 1 doesn't duck.
+      expect(cue.ducking.windows).toEqual([
+        { start: 4, end: 10, level: 0.25 },
+        { start: 10, end: 16, level: 0.5 },
+      ])
+      expect(musicGain(cue, 9)).toBeCloseTo(0.8 * 0.25)
+      // On its way back up from the deeper level, until it meets the next.
+      expect(musicGain(cue, 10.1)).toBeCloseTo(0.8 * 0.4)
+      expect(musicGain(cue, 12)).toBeCloseTo(0.8 * 0.5)
+      expect(musicGain(cue, 17)).toBeCloseTo(0.8)
+    })
+
+    it('stretches a window to meet a close one with another level', () => {
+      const s = buildSchedule(
+        doc({
+          music: music(0.5),
+          scenes: [
+            first,
+            gameplay({ keepClipAudio: true }), // 4–10
+            card('packshot', 0.8), // 10–10.8
+            gameplay({ keepClipAudio: true, duckLevel: 0.5 }), // 10.8–16.8
+          ],
+        }),
+        assets,
+      )
+      expect(s.music?.ducking.windows).toEqual([
+        { start: 4, end: 10.8, level: 0.25 },
+        { start: 10.8, end: 16.8, level: 0.5 },
+      ])
     })
 
     it('ramps the music down before clip audio and back up after', () => {
@@ -253,7 +302,7 @@ describe('buildSchedule', () => {
         assets,
       )
       const cue = s.music!
-      expect(cue.ducking.windows).toEqual([{ start: 4, end: 10 }])
+      expect(cue.ducking.windows).toEqual([{ start: 4, end: 10, level: 0.25 }])
       expect(musicGain(cue, 1)).toBeCloseTo(0.8)
       expect(musicGain(cue, 3.75)).toBeCloseTo(0.8 * 0.625)
       expect(musicGain(cue, 4)).toBeCloseTo(0.2)

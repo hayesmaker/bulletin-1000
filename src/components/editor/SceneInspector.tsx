@@ -1,4 +1,12 @@
-import { Button, Form, InputNumber, Popconfirm, Segmented, Switch } from 'antd'
+import {
+  Button,
+  Form,
+  InputNumber,
+  Popconfirm,
+  Segmented,
+  Slider,
+  Switch,
+} from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import { DEFAULT_GAMEPLAY_LENGTH, sceneLength } from '#/lib/project'
 import type { Scene, Transition } from '#/lib/project'
@@ -12,6 +20,9 @@ import { sceneIcons, sceneLabels } from './labels'
 
 interface Props {
   scene: Scene
+  // The project's music level under clip audio, used unless the scene sets
+  // its own.
+  projectDuckLevel: number
   index: number
   assets: AssetRow[]
   onChange: (scene: Scene) => void
@@ -23,6 +34,7 @@ const MAX_CARD_DURATION = 30
 // Settings for the selected scene.
 export function SceneInspector({
   scene,
+  projectDuckLevel,
   index,
   assets,
   onChange,
@@ -154,11 +166,45 @@ export function SceneInspector({
             {scene.keepClipAudio && (
               <Form.Item
                 label="Lower the music"
-                extra="Drops the music under this clip’s sound (set the level in Music & splash)."
+                extra="Drops the music under this clip’s sound."
               >
                 <Switch
                   checked={scene.duckMusic}
                   onChange={(duckMusic) => onChange({ ...scene, duckMusic })}
+                />
+              </Form.Item>
+            )}
+            {scene.keepClipAudio && scene.duckMusic && (
+              <Form.Item
+                label="Music level under this clip"
+                extra={
+                  scene.duckLevel === null ? (
+                    'The project setting, from Music & splash.'
+                  ) : (
+                    <>
+                      This scene’s own level.{' '}
+                      <Button
+                        type="link"
+                        size="small"
+                        className="p-0"
+                        onClick={() => onChange({ ...scene, duckLevel: null })}
+                      >
+                        Use the project setting (
+                        {Math.round(projectDuckLevel * 100)}%)
+                      </Button>
+                    </>
+                  )
+                }
+              >
+                <Slider
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={scene.duckLevel ?? projectDuckLevel}
+                  tooltip={{
+                    formatter: (v) => `${Math.round((v ?? 0) * 100)}%`,
+                  }}
+                  onChange={(duckLevel) => onChange({ ...scene, duckLevel })}
                 />
               </Form.Item>
             )}
