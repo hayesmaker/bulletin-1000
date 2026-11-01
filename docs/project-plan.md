@@ -38,7 +38,7 @@ Updated 2026-11-01.
   - One **continuous music track** (usually the game's own music) plays without restarting at each scene.
   - Its **start point is the user's choice** and defaults to the start of the first gameplay scene, as in the originals, where the intro cards play without music.
   - The source can be an uploaded audio file or the audio taken from one of the gameplay clips.
-  - Gameplay clip audio is muted by default, with an optional per-scene "keep clip audio" switch mixed over the music.
+  - Gameplay clip audio is muted by default, with an optional per-scene "keep clip audio" switch mixed over the music. The music ducks under kept clip audio (see step 5).
   - The splash jingle plays when a splash is selected.
 - **Output: 1440×1080 at 25 fps** (4:3, PAL-era frame rate). H.264/AAC MP4.
 - **Fonts:** a free Helvetica-style sans for captions and packshot text, plus custom-designed chunky logo type for the 1985 splash. Font choices are defined once in the template theme config so they're easy to change.
@@ -116,15 +116,18 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 
 ### 5. Export
 
-- [ ] SQLite-backed render job queue with a single worker
-- [ ] Playwright frame capture at 1440×1080, 25 fps. Use Google Chrome (`channel: 'chrome'` or its executable path) rather than Playwright's bundled Chromium, which ships without H.264/AAC decoders.
-- [ ] ffmpeg encode, mixing music, clip audio, and jingle
-- [ ] Music ducking under clip audio, so the music drops while a scene with "keep clip audio" plays:
-  - project settings: ducking level (default about 30% of the music volume) and ramp time (default 0.25s)
-  - optional per-scene override: no ducking, or its own level
-  - `schedule.ts` produces the duck windows, so the preview (`syncMedia` volume) and the export (an ffmpeg volume envelope) match
-- [ ] Render progress and status in the UI
-- [ ] Download link for the finished MP4
+- [x] SQLite-backed render job queue with a single worker (`renders` table; the doc is copied when a render is requested; unfinished renders resume after a restart)
+- [x] Playwright (`playwright-core`) frame capture at 1440×1080, 25 fps, using Google Chrome (`channel: 'chrome'`, or `CHROME_PATH`) rather than Playwright's bundled Chromium, which ships without H.264/AAC decoders
+- [x] One ffmpeg pass: PNG frames piped in, music and clip audio mixed, H.264/AAC MP4 out
+- [x] Music ducking under clip audio (decided 2026-11-01):
+  - project settings in Music & splash: level (default 30% of the music volume) and fade time (default 0.25s)
+  - per scene: "Lower the music" switch (on by default) for scenes that keep their clip audio
+  - `schedule.ts` produces the duck windows and `musicGain()`; the export renders the same curve as an ffmpeg volume expression (tested against each other)
+- [x] Render progress and status in the editor's Export drawer; deleting a render stops it
+- [x] Download link and in-page player for the finished MP4 (`/renders/:id/file`)
+- [ ] Mix in the splash jingle (needs step 6)
+- [ ] Per-scene ducking level (only on/off for now)
+- [ ] Faster capture: about 6 frames/s now (a 24s video takes about 1.5 min). Options: JPEG frames, CDP screenshots, or several pages rendering ranges in parallel.
 
 ### 6. Splash recreations
 

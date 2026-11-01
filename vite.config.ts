@@ -19,6 +19,11 @@ const config = defineConfig({
           method: 'GET',
           handler: './src/server/media.handler.ts',
         },
+        {
+          route: '/renders/:renderId/file',
+          method: 'GET',
+          handler: './src/server/render-file.handler.ts',
+        },
       ],
     }),
     tailwindcss(),

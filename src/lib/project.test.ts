@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  DEFAULT_DUCKING,
   assetIdsInDoc,
   createProjectDoc,
   moveScene,
@@ -147,6 +148,7 @@ describe('editing helpers', () => {
         sourceOffset: 0,
         startAt: { type: 'first-gameplay' },
         volume: 1,
+        ducking: DEFAULT_DUCKING,
       },
       scenes: [
         newScene('gameplay', { id: clip }),

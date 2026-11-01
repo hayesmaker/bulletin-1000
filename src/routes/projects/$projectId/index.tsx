@@ -1,13 +1,18 @@
 import { useMemo, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { App, Card, Tabs, Tag, Tooltip } from 'antd'
-import { ArrowLeftOutlined, EyeOutlined } from '@ant-design/icons'
+import { App, Button, Card, Drawer, Tabs, Tag, Tooltip } from 'antd'
+import {
+  ArrowLeftOutlined,
+  ExportOutlined,
+  EyeOutlined,
+} from '@ant-design/icons'
 import compositionCss from '#/composition/composition.css?url'
 import { toCompositionAssets } from '#/composition/assets'
 import { snapDown } from '#/composition/schedule'
 import { CompositionPlayer } from '#/components/CompositionPlayer'
 import { AssetBin } from '#/components/editor/AssetBin'
 import { DetailsForm } from '#/components/editor/DetailsForm'
+import { ExportPanel } from '#/components/editor/ExportPanel'
 import { MusicPanel } from '#/components/editor/MusicPanel'
 import { SceneInspector } from '#/components/editor/SceneInspector'
 import { SceneList } from '#/components/editor/SceneList'
@@ -58,6 +63,7 @@ function Editor() {
   const { doc, update, status, error } = useProjectDoc(project.id, project.doc)
   const { assets, added, removed } = useAssets(project.id, initialAssets)
   const [selectedId, setSelectedId] = useState(doc.scenes[0]?.id)
+  const [exportOpen, setExportOpen] = useState(false)
 
   const assetMap = useMemo(
     () => new Map(assets.map((a) => [a.id, a])),
@@ -154,6 +160,13 @@ function Editor() {
         >
           <EyeOutlined /> Full preview
         </Link>
+        <Button
+          type="primary"
+          icon={<ExportOutlined />}
+          onClick={() => setExportOpen(true)}
+        >
+          Export
+        </Button>
       </header>
 
       <main className="grid gap-4 p-4 lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_380px]">
@@ -234,6 +247,16 @@ function Editor() {
           )}
         </Card>
       </main>
+
+      <Drawer
+        title="Export"
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        size="large"
+        destroyOnHidden
+      >
+        <ExportPanel projectId={project.id} saved={status === 'saved'} />
+      </Drawer>
     </div>
   )
 }
