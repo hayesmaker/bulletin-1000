@@ -10,33 +10,59 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MediaAssetIdVariantRouteImport } from './routes/media/$assetId/$variant'
+import { Route as ApiProjectsProjectIdAssetsRouteImport } from './routes/api/projects/$projectId/assets'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MediaAssetIdVariantRoute = MediaAssetIdVariantRouteImport.update({
+  id: '/media/$assetId/$variant',
+  path: '/media/$assetId/$variant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProjectsProjectIdAssetsRoute =
+  ApiProjectsProjectIdAssetsRouteImport.update({
+    id: '/api/projects/$projectId/assets',
+    path: '/api/projects/$projectId/assets',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/media/$assetId/$variant': typeof MediaAssetIdVariantRoute
+  '/api/projects/$projectId/assets': typeof ApiProjectsProjectIdAssetsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/media/$assetId/$variant': typeof MediaAssetIdVariantRoute
+  '/api/projects/$projectId/assets': typeof ApiProjectsProjectIdAssetsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/media/$assetId/$variant': typeof MediaAssetIdVariantRoute
+  '/api/projects/$projectId/assets': typeof ApiProjectsProjectIdAssetsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    '/' | '/media/$assetId/$variant' | '/api/projects/$projectId/assets'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/media/$assetId/$variant' | '/api/projects/$projectId/assets'
+  id:
+    | '__root__'
+    | '/'
+    | '/media/$assetId/$variant'
+    | '/api/projects/$projectId/assets'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  MediaAssetIdVariantRoute: typeof MediaAssetIdVariantRoute
+  ApiProjectsProjectIdAssetsRoute: typeof ApiProjectsProjectIdAssetsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +74,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/media/$assetId/$variant': {
+      id: '/media/$assetId/$variant'
+      path: '/media/$assetId/$variant'
+      fullPath: '/media/$assetId/$variant'
+      preLoaderRoute: typeof MediaAssetIdVariantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/projects/$projectId/assets': {
+      id: '/api/projects/$projectId/assets'
+      path: '/api/projects/$projectId/assets'
+      fullPath: '/api/projects/$projectId/assets'
+      preLoaderRoute: typeof ApiProjectsProjectIdAssetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  MediaAssetIdVariantRoute: MediaAssetIdVariantRoute,
+  ApiProjectsProjectIdAssetsRoute: ApiProjectsProjectIdAssetsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
