@@ -151,6 +151,17 @@ export function SceneInspector({
                 }
               />
             </Form.Item>
+            {scene.keepClipAudio && (
+              <Form.Item
+                label="Lower the music"
+                extra="Drops the music under this clip’s sound (set the level in Music & splash)."
+              >
+                <Switch
+                  checked={scene.duckMusic}
+                  onChange={(duckMusic) => onChange({ ...scene, duckMusic })}
+                />
+              </Form.Item>
+            )}
           </>
         )}
 

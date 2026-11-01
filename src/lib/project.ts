@@ -74,6 +74,8 @@ export const sceneSchema = z.discriminatedUnion('type', [
       trimIn: seconds,
       trimOut: seconds,
       keepClipAudio: z.boolean().default(false),
+      // Lower the music while this scene's clip audio plays.
+      duckMusic: z.boolean().default(true),
       captions: z.array(captionSchema).default([]),
     })
     .refine((s) => s.trimOut > s.trimIn, {
@@ -81,6 +83,8 @@ export const sceneSchema = z.discriminatedUnion('type', [
       path: ['trimOut'],
     }),
 ])
+
+export const DEFAULT_DUCKING = { level: 0.3, ramp: 0.25 }
 
 export const musicSchema = z.object({
   source: z.discriminatedUnion('type', [
@@ -98,6 +102,14 @@ export const musicSchema = z.object({
     ])
     .default({ type: 'first-gameplay' }),
   volume: z.number().min(0).max(1).default(1),
+  // How the music drops under clip audio: `level` is the fraction of the
+  // music volume kept, `ramp` the seconds to fade down and back up.
+  ducking: z
+    .object({
+      level: z.number().min(0).max(1).default(DEFAULT_DUCKING.level),
+      ramp: z.number().min(0).max(2).default(DEFAULT_DUCKING.ramp),
+    })
+    .default(DEFAULT_DUCKING),
 })
 
 export const splashSchema = z.enum(['none', '1985', '1989'])
@@ -140,6 +152,7 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
       sourceOffset: 0,
       startAt: { type: 'first-gameplay' },
       volume: 1,
+      ducking: DEFAULT_DUCKING,
     },
     scenes: [
       {
@@ -190,6 +203,7 @@ export function newScene(
           DEFAULT_GAMEPLAY_LENGTH,
         ),
         keepClipAudio: false,
+        duckMusic: true,
         captions: [],
       }
   }

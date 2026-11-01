@@ -1,5 +1,11 @@
 import { sql } from 'drizzle-orm'
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+import {
+  index,
+  integer,
+  real,
+  sqliteTable,
+  text,
+} from 'drizzle-orm/sqlite-core'
 import type { ProjectDoc } from '#/lib/project'
 
 const createdAt = () =>
@@ -56,5 +62,34 @@ export const assets = sqliteTable(
   (t) => [index('assets_project_id_idx').on(t.projectId)],
 )
 
+export const renderStatuses = ['queued', 'rendering', 'done', 'failed'] as const
+
+// An export of a project to MP4. The doc is copied when the render is
+// requested, so later edits don't change a render in progress.
+export const renders = sqliteTable(
+  'renders',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    status: text('status', { enum: renderStatuses })
+      .notNull()
+      .default('queued'),
+    // 0–1 while rendering.
+    progress: real('progress').notNull().default(0),
+    error: text('error'),
+    doc: text('doc', { mode: 'json' }).$type<ProjectDoc>().notNull(),
+    // Relative to the media directory, set when done.
+    path: text('path'),
+    sizeBytes: integer('size_bytes'),
+    duration: real('duration'),
+    createdAt: createdAt(),
+    finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [index('renders_project_id_idx').on(t.projectId)],
+)
+
 export type ProjectRow = typeof projects.$inferSelect
 export type AssetRow = typeof assets.$inferSelect
+export type RenderRow = typeof renders.$inferSelect

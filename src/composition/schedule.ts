@@ -39,6 +39,14 @@ export interface MusicCue {
   sourceOffset: number
   volume: number
   fadeOut: number
+  // The music drops to `level` × volume during each window, fading down
+  // over `ramp` seconds before it and back up after it.
+  ducking: { level: number; ramp: number; windows: TimeWindow[] }
+}
+
+export interface TimeWindow {
+  start: number
+  end: number
 }
 
 export interface ClipAudioCue {
@@ -46,6 +54,9 @@ export interface ClipAudioCue {
   assetId: string
   start: number
   end: number
+  // Position in the clip at `start`.
+  trimIn: number
+  duckMusic: boolean
 }
 
 export interface Schedule {
@@ -115,11 +126,12 @@ export function buildSchedule(
   }
   const duration = items.at(-1)?.end ?? 0
 
+  const clipAudio = clipAudioCues(items, assets)
   return {
     items,
     duration,
-    music: musicCue(doc, items, assets, duration),
-    clipAudio: clipAudioCues(items, assets),
+    music: musicCue(doc, items, assets, duration, clipAudio),
+    clipAudio,
   }
 }
 
@@ -128,6 +140,7 @@ function musicCue(
   items: ScheduledItem[],
   assets: Map<string, AssetInfo>,
   duration: number,
+  clipAudio: ClipAudioCue[],
 ): MusicCue | null {
   const { music } = doc
   const { startAt } = music
@@ -156,8 +169,46 @@ function musicCue(
     sourceOffset: music.sourceOffset,
     volume: music.volume,
     fadeOut: Math.min(timing.musicFadeOut, end - start),
+    ducking: {
+      ...music.ducking,
+      windows: duckWindows(clipAudio, music.ducking.ramp),
+    },
   }
 }
+
+// Clip audio windows that duck the music. Windows closer together than the
+// ramp in and out are merged, so the music doesn't bob up between them.
+function duckWindows(clipAudio: ClipAudioCue[], ramp: number): TimeWindow[] {
+  const windows: TimeWindow[] = []
+  // Cues are already in timeline order.
+  for (const { start, end } of clipAudio.filter((c) => c.duckMusic)) {
+    const last = windows.at(-1)
+    if (last && start <= last.end + 2 * ramp) last.end = Math.max(last.end, end)
+    else windows.push({ start, end })
+  }
+  return windows
+}
+
+// The music's volume at time t: its set volume, ducked under clip audio and
+// faded out at the end. The exporter renders the same curve with ffmpeg
+// (see musicGainExpression in the export code).
+export function musicGain(cue: MusicCue, t: number) {
+  if (t < cue.start || t >= cue.end) return 0
+  const fade =
+    cue.fadeOut > 0 ? Math.min(1, Math.max(0, (cue.end - t) / cue.fadeOut)) : 1
+  const { level, windows } = cue.ducking
+  const ramp = Math.max(cue.ducking.ramp, MIN_RAMP)
+  let depth = 0
+  for (const w of windows) {
+    const rise = (t - (w.start - ramp)) / ramp
+    const fall = (w.end + ramp - t) / ramp
+    depth = Math.max(depth, Math.min(1, Math.max(0, Math.min(rise, fall))))
+  }
+  return cue.volume * fade * (1 - (1 - level) * depth)
+}
+
+// A zero ramp is treated as a very short one, so the curve stays continuous.
+export const MIN_RAMP = 0.01
 
 function clipAudioCues(
   items: ScheduledItem[],
@@ -174,6 +225,8 @@ function clipAudioCues(
         assetId: scene.assetId,
         start: item.start,
         end: item.end,
+        trimIn: scene.trimIn,
+        duckMusic: scene.duckMusic,
       },
     ]
   })

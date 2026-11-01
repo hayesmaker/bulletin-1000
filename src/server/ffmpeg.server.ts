@@ -165,3 +165,28 @@ export function makeThumbnail(input: string, output: string, at = 0) {
     output,
   ])
 }
+
+// Starts ffmpeg reading from stdin (e.g. piped frames). `done` resolves
+// when it exits cleanly; `kill` stops it early.
+export function spawnFfmpeg(args: string[]) {
+  const child = spawn('ffmpeg', ['-y', '-v', 'error', ...args], {
+    stdio: ['pipe', 'ignore', 'pipe'],
+  })
+  let stderr = ''
+  child.stderr.on('data', (chunk: Buffer) => {
+    stderr = (stderr + chunk.toString()).slice(-4000)
+  })
+  const done = new Promise<void>((resolve, reject) => {
+    child.on('error', reject)
+    child.on('close', (code) => {
+      if (code === 0) resolve()
+      else {
+        const detail = stderr.trim().split('\n').slice(-3).join('\n')
+        reject(new Error(`ffmpeg exited with code ${code}: ${detail}`))
+      }
+    })
+  })
+  // Errors surface through `done`; a closed pipe shouldn't crash the server.
+  child.stdin.on('error', () => {})
+  return { stdin: child.stdin, done, kill: () => child.kill('SIGKILL') }
+}

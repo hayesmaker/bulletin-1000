@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { createProjectDoc } from '#/lib/project'
+import { DEFAULT_DUCKING, createProjectDoc } from '#/lib/project'
 import type { ProjectDoc, Scene } from '#/lib/project'
-import { buildSchedule, itemsAt, snapDown, toFrames } from './schedule'
+import {
+  buildSchedule,
+  itemsAt,
+  musicGain,
+  snapDown,
+  toFrames,
+} from './schedule'
 import type { AssetInfo } from './schedule'
 
 const clipId = crypto.randomUUID()
@@ -29,6 +35,7 @@ const gameplay = (overrides: Partial<Scene> = {}): Scene =>
     trimIn: 2,
     trimOut: 8,
     keepClipAudio: false,
+    duckMusic: true,
     captions: [],
     transitionIn: 'cut',
     ...overrides,
@@ -130,6 +137,7 @@ describe('buildSchedule', () => {
             sourceOffset: 5,
             startAt: { type: 'first-gameplay' },
             volume: 0.8,
+            ducking: DEFAULT_DUCKING,
           },
         }),
         assets,
@@ -141,6 +149,7 @@ describe('buildSchedule', () => {
         sourceOffset: 5,
         volume: 0.8,
         fadeOut: 1.5,
+        ducking: { ...DEFAULT_DUCKING, windows: [] },
       })
     })
 
@@ -153,6 +162,7 @@ describe('buildSchedule', () => {
             sourceOffset: 12,
             startAt: { type: 'scene', sceneId: scenes[0].id },
             volume: 1,
+            ducking: DEFAULT_DUCKING,
           },
         }),
         assets,
@@ -170,6 +180,7 @@ describe('buildSchedule', () => {
             sourceOffset: 0,
             startAt: { type: 'first-gameplay' },
             volume: 1,
+            ducking: DEFAULT_DUCKING,
           },
         }),
         assets,
@@ -191,7 +202,66 @@ describe('buildSchedule', () => {
       assets,
     )
     expect(s.clipAudio).toEqual([
-      { sceneId: keep.id, assetId: clipId, start: 6, end: 12 },
+      {
+        sceneId: keep.id,
+        assetId: clipId,
+        start: 6,
+        end: 12,
+        trimIn: 2,
+        duckMusic: true,
+      },
     ])
+  })
+
+  describe('ducking', () => {
+    const music = (ramp = 0.25): ProjectDoc['music'] => ({
+      source: { type: 'upload', assetId: tuneId },
+      sourceOffset: 0,
+      startAt: { type: 'scene', sceneId: first.id },
+      volume: 0.8,
+      ducking: { level: 0.25, ramp },
+    })
+    const first = card('packshot', 4)
+
+    it('ducks under clip audio, merging close windows', () => {
+      const s = buildSchedule(
+        doc({
+          music: music(),
+          scenes: [
+            first,
+            gameplay({ keepClipAudio: true }), // 4–10
+            gameplay({ keepClipAudio: true }), // 10–16
+            card('packshot', 4), // 16–20
+            gameplay({ keepClipAudio: true, duckMusic: false }), // 20–26
+          ],
+        }),
+        assets,
+      )
+      expect(s.music?.ducking.windows).toEqual([{ start: 4, end: 16 }])
+    })
+
+    it('ramps the music down before clip audio and back up after', () => {
+      const s = buildSchedule(
+        doc({
+          music: music(0.5),
+          scenes: [
+            first,
+            gameplay({ keepClipAudio: true }),
+            card('packshot', 4),
+          ],
+        }),
+        assets,
+      )
+      const cue = s.music!
+      expect(cue.ducking.windows).toEqual([{ start: 4, end: 10 }])
+      expect(musicGain(cue, 1)).toBeCloseTo(0.8)
+      expect(musicGain(cue, 3.75)).toBeCloseTo(0.8 * 0.625)
+      expect(musicGain(cue, 4)).toBeCloseTo(0.2)
+      expect(musicGain(cue, 9)).toBeCloseTo(0.2)
+      expect(musicGain(cue, 10.5)).toBeCloseTo(0.8)
+      // Faded out over the last 1.5s.
+      expect(musicGain(cue, 13.25)).toBeCloseTo(0.8 * 0.5)
+      expect(musicGain(cue, 14)).toBe(0)
+    })
   })
 })

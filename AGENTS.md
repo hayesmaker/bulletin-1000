@@ -50,12 +50,15 @@ Imports can use the `#/*` alias for `src/*`.
 - `src/routes/index.tsx`: project list. `src/routes/projects/$projectId/index.tsx`: the editor, built from `src/components/editor/` (details form, asset bin, scene list, scene inspector with the clip trimmer and caption editor). `useProjectDoc` autosaves the doc; pure doc edits (`newScene`, `moveScene`, `removeScene`, `removeAssetReferences`) live in `src/lib/project.ts`.
 - `src/routes/projects/$projectId/preview.tsx`: full-page preview player. `src/routes/render/$projectId.tsx`: bare 1440×1080 stage for the exporter, exposing `window.composition` once ready.
 - `drizzle/`: generated SQL migrations. Commit them; don't edit them by hand.
-- `DATA_DIR` (default `./data`, gitignored) holds `bulletin.db` and `media/<projectId>/<assetId>/`.
+- `src/server/renders.server.ts`: video export. A serial queue renders each job by loading `/render/:projectId?render=<id>` in headless Chrome (`capture.server.ts`), stepping `renderFrame`, and piping PNGs into one ffmpeg process that also mixes the audio (`mix.server.ts`). `render-file.handler.ts` (a Nitro handler, like media) serves `/renders/:renderId/file`.
+- `DATA_DIR` (default `./data`, gitignored) holds `bulletin.db` and `media/<projectId>/<assetId>/`; renders go to `media/<projectId>/renders/<renderId>.mp4`.
 
 ## Technical rules
 
 - **Deterministic composition.** The same GSAP composition is used for the in-browser preview and for the server export, where headless Chromium steps through the timeline frame by frame. Never use `Date.now()`, real-time timers or other wall-clock-dependent animation. All timing must come from the timeline.
 - **Theme in one place.** Fonts, colours, and Bulletin 1000 brand text and logos are defined once in the template theme config, so they can be changed or swapped easily.
 - **Media on disk.** Uploads and renders are stored under the configurable media directory, never in the repo.
-- **Server tools.** ffmpeg/ffprobe and Chromium (Playwright) are expected to be installed on the host.
+- **Server tools.** ffmpeg/ffprobe and Google Chrome are expected to be installed on the host. Export uses `playwright-core` with Chrome, not Playwright's bundled Chromium (no H.264/AAC). Set `CHROME_PATH` to use a specific executable.
+- **Render base URL.** The export browser loads the render page from this server, at the origin of the request that started the render. Set `RENDER_BASE_URL` (e.g. `http://localhost:3000`) when that origin isn't reachable from the server itself, such as behind a proxy.
+- **Preview and export audio must match.** Music volume (fade-out, ducking) comes from `musicGain()` in `schedule.ts`; `musicGainExpression()` in `mix.server.ts` is its ffmpeg twin. Change both together; `mix.server.test.ts` checks they agree.
 - **Reference footage.** Original promo clips are in `reference/`, which is gitignored. The splash intros are recreated in code as reinterpretations; never embed or copy the original footage or jingle.

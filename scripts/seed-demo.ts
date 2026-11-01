@@ -12,7 +12,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { parseArgs } from 'node:util'
-import { projectDocSchema } from '#/lib/project'
+import { DEFAULT_DUCKING, projectDocSchema } from '#/lib/project'
 import type { ProjectDoc, Scene } from '#/lib/project'
 import { enqueueProcessing, saveUpload } from '#/server/assets.server'
 import { getDb } from '#/server/db/client.server'
@@ -116,6 +116,7 @@ const scenes: Array<Scene> = [
     trimIn: 0,
     trimOut: Math.min(clip.metadata.duration ?? 5, 6),
     keepClipAudio: false,
+    duckMusic: true,
     transitionIn: i === 0 ? 'cut' : 'dissolve',
     captions:
       i === 0
@@ -140,6 +141,7 @@ const doc: ProjectDoc = {
     sourceOffset: 0,
     startAt: { type: 'first-gameplay' },
     volume: 0.8,
+    ducking: DEFAULT_DUCKING,
   },
   scenes,
 }

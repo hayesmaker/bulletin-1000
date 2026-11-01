@@ -1,6 +1,10 @@
 import fs from 'node:fs/promises'
 import { and, desc, eq, inArray } from 'drizzle-orm'
-import { assetIdsInDoc, createProjectDoc } from '#/lib/project'
+import {
+  assetIdsInDoc,
+  createProjectDoc,
+  projectDocSchema,
+} from '#/lib/project'
 import type { ProjectDoc } from '#/lib/project'
 import { projectMediaDir } from '#/server/config.server'
 import { assets, projects } from '#/server/db/schema'
@@ -20,8 +24,13 @@ export function listProjects(db: Db) {
     .all()
 }
 
-export function findProject(db: Db, id: string) {
-  return db.select().from(projects).where(eq(projects.id, id)).get()
+// Stored docs are re-parsed so fields added since they were saved get their
+// defaults.
+export function findProject(db: Db, id: string): ProjectRow | undefined {
+  const row = db.select().from(projects).where(eq(projects.id, id)).get()
+  if (!row) return undefined
+  const parsed = projectDocSchema.safeParse(row.doc)
+  return parsed.success ? { ...row, doc: parsed.data } : row
 }
 
 export function insertProject(db: Db, title?: string) {

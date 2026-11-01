@@ -114,6 +114,33 @@ export function MusicPanel({ doc, assets, update }: Props) {
               onChange={(volume) => setMusic({ volume })}
             />
           </Form.Item>
+          <Form.Item
+            label="Under clip audio"
+            extra="Music level while a scene that keeps its clip audio plays."
+          >
+            <Slider
+              min={0}
+              max={1}
+              step={0.05}
+              value={music.ducking.level}
+              tooltip={{ formatter: (v) => `${Math.round((v ?? 0) * 100)}%` }}
+              onChange={(level) =>
+                setMusic({ ducking: { ...music.ducking, level } })
+              }
+            />
+          </Form.Item>
+          <Form.Item label="Fade down and up over">
+            <InputNumber
+              min={0}
+              max={2}
+              step={0.05}
+              suffix="s"
+              value={music.ducking.ramp}
+              onChange={(ramp) =>
+                setMusic({ ducking: { ...music.ducking, ramp: ramp ?? 0 } })
+              }
+            />
+          </Form.Item>
         </>
       )}
     </Form>

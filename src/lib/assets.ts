@@ -39,3 +39,7 @@ export function mediaUrl(assetId: string, variant: MediaVariant = 'file') {
 export function assetUploadUrl(projectId: string, filename: string) {
   return `/api/projects/${projectId}/assets?name=${encodeURIComponent(filename)}`
 }
+
+export function renderFileUrl(renderId: string, download = false) {
+  return `/renders/${renderId}/file${download ? '?download' : ''}`
+}

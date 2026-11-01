@@ -5,7 +5,7 @@ import { Readable } from 'node:stream'
 import { eq } from 'drizzle-orm'
 import type { MediaVariant } from '#/lib/assets'
 import { mediaDir } from '#/server/config.server'
-import { assets } from '#/server/db/schema'
+import { assets, renders } from '#/server/db/schema'
 import type { Db } from '#/server/db/client.server'
 
 const notFound = () => new Response('Not found', { status: 404 })
@@ -42,16 +42,44 @@ export async function serveAssetFile(
   const relative = variant === 'thumb' ? asset.thumbnailPath : asset.path
   if (!relative) return notFound()
 
-  const file = path.join(mediaDir(), relative)
-  const stat = await fsp.stat(file).catch(() => undefined)
-  if (!stat?.isFile()) return notFound()
-
-  const headers = new Headers({
+  return serveFile(path.join(mediaDir(), relative), request, {
     'Content-Type': variant === 'thumb' ? 'image/jpeg' : asset.mimeType,
-    'Accept-Ranges': 'bytes',
     // A ready asset's files never change; new uploads get new ids.
     'Cache-Control': 'private, max-age=31536000, immutable',
   })
+}
+
+// A finished render's MP4. `download` asks the browser to save it as a file
+// named after the game.
+export async function serveRenderFile(
+  db: Db,
+  renderId: string,
+  request: Request,
+  download: boolean,
+) {
+  const render = db.select().from(renders).where(eq(renders.id, renderId)).get()
+  if (render?.status !== 'done' || !render.path) return notFound()
+  const headers: Record<string, string> = {
+    'Content-Type': 'video/mp4',
+    'Cache-Control': 'private, max-age=31536000, immutable',
+  }
+  if (download) {
+    const name = render.doc.title.replace(/[^\w\- ]+/g, '').trim() || 'video'
+    headers['Content-Disposition'] = `attachment; filename="${name}.mp4"`
+  }
+  return serveFile(path.join(mediaDir(), render.path), request, headers)
+}
+
+// Serves a file from disk with Range support, so browsers can seek.
+async function serveFile(
+  file: string,
+  request: Request,
+  extraHeaders: Record<string, string>,
+) {
+  const stat = await fsp.stat(file).catch(() => undefined)
+  if (!stat?.isFile()) return notFound()
+
+  const headers = new Headers({ ...extraHeaders, 'Accept-Ranges': 'bytes' })
 
   const rangeHeader = request.headers.get('range')
   if (!rangeHeader) {

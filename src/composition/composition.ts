@@ -1,6 +1,6 @@
 import { gsap } from 'gsap'
 import type { ProjectDoc } from '#/lib/project'
-import { buildSchedule } from './schedule'
+import { buildSchedule, musicGain } from './schedule'
 import type { Schedule } from './schedule'
 import { buildLayer } from './scenes'
 import type { CaptionCue, CompositionAsset, VideoCue } from './scenes'
@@ -184,9 +184,7 @@ export function createComposition(
         }
         if (music.paused) void music.play().catch(() => undefined)
       }
-      const remaining = cue.end - t
-      const fade = cue.fadeOut > 0 ? Math.min(1, remaining / cue.fadeOut) : 1
-      music.volume = Math.max(0, Math.min(1, cue.volume * fade))
+      music.volume = Math.max(0, Math.min(1, musicGain(cue, t)))
     }
   }
 
