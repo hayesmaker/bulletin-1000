@@ -51,13 +51,13 @@ Updated 2026-11-01.
 
 Reference clips live in `reference/` (gitignored, not committed). They are 1280×720 captures of 4:3 VHS footage, mostly 30fps.
 
-| File | What it shows |
-| --- | --- |
-| `bulletin1000-gyroscope-1985.mp4` | **1985 splash** (about 3s) followed by a full promo |
-| `bulletin-1000-issue43-aug1989_part16.mp4` | **1989 splash and jingle** (7s, 25fps) |
-| `bulletin1000-{ace,arcofyesod}-1985.mp4` | 1985-era promos |
-| `bulletin1000-{bigleagesoccer,flintstones,mariobros}-1987.mp4` | 1987-era promos |
-| `whsmiths-promo-taitohits-oct88.mp4` | A different format: box art zooming on a yellow-to-black gradient (candidate for a later "compilation" template) |
+| File                                                           | What it shows                                                                                                    |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `bulletin1000-gyroscope-1985.mp4`                              | **1985 splash** (about 3s) followed by a full promo                                                              |
+| `bulletin-1000-issue43-aug1989_part16.mp4`                     | **1989 splash and jingle** (7s, 25fps)                                                                           |
+| `bulletin1000-{ace,arcofyesod}-1985.mp4`                       | 1985-era promos                                                                                                  |
+| `bulletin1000-{bigleagesoccer,flintstones,mariobros}-1987.mp4` | 1987-era promos                                                                                                  |
+| `whsmiths-promo-taitohits-oct88.mp4`                           | A different format: box art zooming on a yellow-to-black gradient (candidate for a later "compilation" template) |
 
 **Promo structure:**
 
