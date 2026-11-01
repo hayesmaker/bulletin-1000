@@ -7,7 +7,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { mediaDir } from '#/server/config.server'
 import { openDb } from '#/server/db/client.server'
 import type { Db } from '#/server/db/client.server'
-import { insertProject } from '#/server/projects.server'
+import {
+  findProject,
+  insertProject,
+  saveProjectDoc,
+} from '#/server/projects.server'
 import {
   UploadError,
   enqueueProcessing,
@@ -176,9 +180,12 @@ describe('saveUpload + processing', () => {
     expect(listAssets(db, projectId)).toHaveLength(0)
   }, 30_000)
 
-  it('removes an asset and its files', async () => {
+  it('removes an asset, its files and references to it', async () => {
     const { done } = await upload('box.png')
+    const project = findProject(db, projectId)!
+    saveProjectDoc(db, projectId, { ...project.doc, boxArtAssetId: done.id })
     expect(await removeAsset(db, done.id)).toBe(true)
+    expect(findProject(db, projectId)?.doc.boxArtAssetId).toBeNull()
     expect(listAssets(db, projectId)).toHaveLength(0)
     expect(onDisk(`${projectId}/${done.id}`)).toBe(false)
     expect(await removeAsset(db, done.id)).toBe(false)

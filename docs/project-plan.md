@@ -71,7 +71,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [x] Define the asset schema: file path, kind, probed metadata, thumbnail
 - [x] Write server functions for project CRUD
 - [x] Add Vitest, with tests for the project schema and project queries
-- [ ] Check that asset IDs referenced in a project doc belong to that project (once uploads exist)
+- [x] Check that asset IDs referenced in a project doc belong to that project (`updateProject` rejects others)
 
 ### 2. Upload pipeline
 
@@ -82,8 +82,8 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [x] Accept audio file uploads for the music track (transcoded to AAC)
 - [x] Serial background processing queue; interrupted jobs resume after a restart
 - [x] Serve media by asset ID (`/media/:assetId/file|thumb`) with Range support for seeking
-- [ ] Decide how to scale low-resolution gameplay into the inset (nearest-neighbour vs smooth). Clips currently keep their native size, so the composition decides.
-- [ ] Clean up asset references in the project doc when an asset is deleted (editor step)
+- [x] Decide how to scale low-resolution gameplay into the inset: pixelated by default (see step 3)
+- [x] Clean up asset references in the project doc when an asset is deleted (scenes keep a placeholder)
 
 ### 3. Composition (GSAP template)
 
@@ -101,19 +101,28 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 
 ### 4. Editor UI
 
-- [ ] Game details form (title, publisher, prices/platforms, packshot colour)
-- [ ] Asset bin with uploads and thumbnails
-- [ ] Ordered scene list (drag to reorder, including the intro cards)
-- [ ] Clip trimmer (in/out points)
-- [ ] Caption editor
-- [ ] Splash picker and music track picker (source, start point)
-- [ ] Embedded preview
+- [x] Project list on the homepage (create, open, delete)
+- [x] Editor at `/projects/:id`, saving automatically a moment after each change (only when the doc is valid)
+- [x] Game details form (title, publisher, prices/platforms, box art, packshot colour)
+- [x] Asset bin with uploads (progress, errors), thumbnails and processing status; add an asset as a scene, box art or music
+- [x] Ordered scene list (drag to reorder, including the intro cards)
+- [x] Clip trimmer (in/out points in whole frames)
+- [x] Caption editor
+- [x] Splash picker and music track picker (source, start point, offset, volume)
+- [x] Embedded preview
+- [x] Fixed: frame 0 rendered blank until the timeline had moved
+- [ ] Jump the preview to the selected scene
+- [ ] Undo/redo
 
 ### 5. Export
 
 - [ ] SQLite-backed render job queue with a single worker
 - [ ] Playwright frame capture at 1440×1080, 25 fps. Use Google Chrome (`channel: 'chrome'` or its executable path) rather than Playwright's bundled Chromium, which ships without H.264/AAC decoders.
 - [ ] ffmpeg encode, mixing music, clip audio, and jingle
+- [ ] Music ducking under clip audio, so the music drops while a scene with "keep clip audio" plays:
+  - project settings: ducking level (default about 30% of the music volume) and ramp time (default 0.25s)
+  - optional per-scene override: no ducking, or its own level
+  - `schedule.ts` produces the duck windows, so the preview (`syncMedia` volume) and the export (an ffmpeg volume envelope) match
 - [ ] Render progress and status in the UI
 - [ ] Download link for the finished MP4
 

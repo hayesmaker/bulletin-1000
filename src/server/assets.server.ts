@@ -6,11 +6,13 @@ import { pipeline } from 'node:stream/promises'
 import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import { and, asc, eq } from 'drizzle-orm'
 import { fileExtension, kindFromFilename, uploadLimits } from '#/lib/assets'
+import { removeAssetReferences } from '#/lib/project'
 import type { AssetKind } from '#/lib/assets'
 import { mediaDir } from '#/server/config.server'
 import { assets, projects } from '#/server/db/schema'
 import type { AssetMetadata, AssetRow } from '#/server/db/schema'
 import type { Db } from '#/server/db/client.server'
+import { findProject, saveProjectDoc } from '#/server/projects.server'
 import {
   makeThumbnail,
   probe,
@@ -257,6 +259,7 @@ export function listAssets(db: Db, projectId: string) {
     .all()
 }
 
+// Deletes the asset, its files, and any references to it in the project.
 export async function removeAsset(db: Db, id: string) {
   const deleted = db
     .delete(assets)
@@ -264,6 +267,10 @@ export async function removeAsset(db: Db, id: string) {
     .returning({ projectId: assets.projectId })
     .get()
   if (deleted) {
+    const project = findProject(db, deleted.projectId)
+    if (project) {
+      saveProjectDoc(db, project.id, removeAssetReferences(project.doc, id))
+    }
     await fsp.rm(abs(assetDir(deleted.projectId, id)), {
       recursive: true,
       force: true,

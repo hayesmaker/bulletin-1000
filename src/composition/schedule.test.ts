@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createProjectDoc } from '#/lib/project'
 import type { ProjectDoc, Scene } from '#/lib/project'
-import { buildSchedule, itemsAt, toFrames } from './schedule'
+import { buildSchedule, itemsAt, snapDown, toFrames } from './schedule'
 import type { AssetInfo } from './schedule'
 
 const clipId = crypto.randomUUID()
@@ -51,6 +51,11 @@ describe('buildSchedule', () => {
       [10, 13],
     ])
     expect(s.duration).toBe(13)
+  })
+
+  it('snaps a clip length down to a whole frame', () => {
+    expect(snapDown(8.0133)).toBe(8)
+    expect(snapDown(4.04)).toBe(4.04)
   })
 
   it('puts the splash first', () => {

@@ -8,6 +8,7 @@ import type { Db } from '#/server/db/client.server'
 import { assets } from '#/server/db/schema'
 import {
   findProject,
+  foreignAssetIds,
   insertProject,
   listProjects,
   removeProject,
@@ -57,6 +58,47 @@ describe('projects', () => {
     insertProject(db, 'B')
     saveProjectDoc(db, a.id, { ...a.doc, title: 'A2' })
     expect(listProjects(db).map((p) => p.title)).toEqual(['A2', 'B'])
+  })
+
+  it('finds asset ids that belong to another project', () => {
+    const mine = insertProject(db)
+    const theirs = insertProject(db)
+    const asset = (projectId: string) =>
+      db
+        .insert(assets)
+        .values({
+          id: crypto.randomUUID(),
+          projectId,
+          kind: 'image',
+          originalName: 'box.png',
+          mimeType: 'image/png',
+          sizeBytes: 10,
+          path: `${projectId}/box.png`,
+        })
+        .returning()
+        .get()
+    const own = asset(mine.id)
+    const foreign = asset(theirs.id)
+    const missing = crypto.randomUUID()
+
+    expect(
+      foreignAssetIds(db, mine.id, { ...mine.doc, boxArtAssetId: own.id }),
+    ).toEqual([])
+    expect(
+      foreignAssetIds(db, mine.id, {
+        ...mine.doc,
+        boxArtAssetId: foreign.id,
+        scenes: [
+          {
+            id: crypto.randomUUID(),
+            type: 'title-screen',
+            assetId: missing,
+            duration: 3,
+            transitionIn: 'cut',
+          },
+        ],
+      }),
+    ).toEqual([foreign.id, missing])
   })
 
   it('deletes the project, its assets and its media folder', async () => {

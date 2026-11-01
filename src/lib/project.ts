@@ -118,6 +118,7 @@ export type PricePlatform = z.infer<typeof pricePlatformSchema>
 export type Caption = z.infer<typeof captionSchema>
 export type Scene = z.infer<typeof sceneSchema>
 export type SceneType = Scene['type']
+export type Transition = z.infer<typeof transitionSchema>
 export type Music = z.infer<typeof musicSchema>
 export type Splash = z.infer<typeof splashSchema>
 export type ProjectDoc = z.infer<typeof projectDocSchema>
@@ -148,5 +149,105 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
         duration: DEFAULT_CARD_DURATION,
       },
     ],
+  }
+}
+
+// Editing helpers used by the editor and the server. They never mutate.
+
+export const DEFAULT_LOGO_DURATION = 2.5
+// A new gameplay scene uses the whole clip, up to this long.
+export const DEFAULT_GAMEPLAY_LENGTH = 10
+
+export function newScene(
+  type: SceneType,
+  asset?: { id: string; duration?: number },
+): Scene {
+  const base = { id: crypto.randomUUID(), transitionIn: 'cut' as const }
+  const assetId = asset?.id ?? null
+  switch (type) {
+    case 'packshot':
+      return { ...base, type, duration: DEFAULT_CARD_DURATION }
+    case 'publisher-logo':
+      return { ...base, type, assetId, duration: DEFAULT_LOGO_DURATION }
+    case 'title-screen':
+      return { ...base, type, assetId, duration: DEFAULT_CARD_DURATION }
+    case 'screenshot':
+      return {
+        ...base,
+        type,
+        assetId,
+        duration: DEFAULT_CARD_DURATION,
+        captions: [],
+      }
+    case 'gameplay':
+      return {
+        ...base,
+        type,
+        assetId,
+        trimIn: 0,
+        trimOut: Math.min(
+          asset?.duration ?? DEFAULT_GAMEPLAY_LENGTH,
+          DEFAULT_GAMEPLAY_LENGTH,
+        ),
+        keepClipAudio: false,
+        captions: [],
+      }
+  }
+}
+
+export function moveScene(doc: ProjectDoc, from: number, to: number) {
+  const scenes = [...doc.scenes]
+  const [scene] = scenes.splice(from, 1)
+  scenes.splice(to, 0, scene)
+  return { ...doc, scenes }
+}
+
+export function removeScene(doc: ProjectDoc, sceneId: string): ProjectDoc {
+  const { startAt } = doc.music
+  return {
+    ...doc,
+    scenes: doc.scenes.filter((s) => s.id !== sceneId),
+    music:
+      startAt.type === 'scene' && startAt.sceneId === sceneId
+        ? { ...doc.music, startAt: { type: 'first-gameplay' } }
+        : doc.music,
+  }
+}
+
+export function sceneLength(scene: Scene) {
+  return scene.type === 'gameplay'
+    ? scene.trimOut - scene.trimIn
+    : scene.duration
+}
+
+// Every asset id the doc points at.
+export function assetIdsInDoc(doc: ProjectDoc) {
+  const ids = new Set<string>()
+  if (doc.boxArtAssetId) ids.add(doc.boxArtAssetId)
+  if (doc.music.source.type !== 'none') ids.add(doc.music.source.assetId)
+  for (const scene of doc.scenes) {
+    if ('assetId' in scene && scene.assetId) ids.add(scene.assetId)
+  }
+  return ids
+}
+
+// Drops references to a deleted asset. Scenes stay, showing a placeholder.
+export function removeAssetReferences(
+  doc: ProjectDoc,
+  assetId: string,
+): ProjectDoc {
+  const source = doc.music.source
+  return {
+    ...doc,
+    boxArtAssetId: doc.boxArtAssetId === assetId ? null : doc.boxArtAssetId,
+    music:
+      source.type !== 'none' && source.assetId === assetId
+        ? { ...doc.music, source: { type: 'none' } }
+        : doc.music,
+    scenes: doc.scenes.map((scene) =>
+      'assetId' in scene && scene.assetId === assetId
+        ? { ...scene, assetId: null }
+        : scene,
+    ),
   }
 }

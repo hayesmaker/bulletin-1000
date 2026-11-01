@@ -146,4 +146,5 @@ const doc: ProjectDoc = {
 saveProjectDoc(db, project.id, projectDocSchema.parse(doc))
 fs.rmSync(tmp, { recursive: true, force: true })
 
-console.log(`Demo project created: /projects/${project.id}/preview`)
+console.log(`Demo project created: /projects/${project.id}`)
+console.log(`Preview: /projects/${project.id}/preview`)

@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { createProjectDoc, projectDocSchema } from './project'
+import {
+  assetIdsInDoc,
+  createProjectDoc,
+  moveScene,
+  newScene,
+  projectDocSchema,
+  removeAssetReferences,
+  removeScene,
+} from './project'
+import type { ProjectDoc, SceneType } from './project'
 
 const uuid = () => crypto.randomUUID()
 
@@ -76,5 +85,81 @@ describe('projectDocSchema', () => {
     expect(
       projectDocSchema.safeParse({ ...base, splash: '1990' }).success,
     ).toBe(false)
+  })
+})
+
+describe('editing helpers', () => {
+  const types: SceneType[] = [
+    'publisher-logo',
+    'packshot',
+    'title-screen',
+    'screenshot',
+    'gameplay',
+  ]
+
+  it('makes a valid new scene of every type', () => {
+    const doc = { ...createProjectDoc(), scenes: types.map((t) => newScene(t)) }
+    expect(projectDocSchema.safeParse(doc).success).toBe(true)
+  })
+
+  it('trims a new gameplay scene to the clip, up to the default length', () => {
+    const short = newScene('gameplay', { id: uuid(), duration: 4.2 })
+    const long = newScene('gameplay', { id: uuid(), duration: 90 })
+    expect(short.type === 'gameplay' && short.trimOut).toBe(4.2)
+    expect(long.type === 'gameplay' && long.trimOut).toBe(10)
+  })
+
+  it('moves a scene', () => {
+    const doc = { ...createProjectDoc(), scenes: types.map((t) => newScene(t)) }
+    const moved = moveScene(doc, 4, 1)
+    expect(moved.scenes.map((s) => s.type)).toEqual([
+      'publisher-logo',
+      'gameplay',
+      'packshot',
+      'title-screen',
+      'screenshot',
+    ])
+    expect(doc.scenes[4].type).toBe('gameplay')
+  })
+
+  it('removes a scene and resets a music start that pointed at it', () => {
+    const gameplay = newScene('gameplay')
+    const doc: ProjectDoc = {
+      ...createProjectDoc(),
+      scenes: [newScene('packshot'), gameplay],
+    }
+    doc.music = {
+      ...doc.music,
+      startAt: { type: 'scene', sceneId: gameplay.id },
+    }
+    const removed = removeScene(doc, gameplay.id)
+    expect(removed.scenes).toHaveLength(1)
+    expect(removed.music.startAt).toEqual({ type: 'first-gameplay' })
+  })
+
+  it('lists and removes asset references', () => {
+    const [box, clip, other] = [uuid(), uuid(), uuid()]
+    const doc: ProjectDoc = {
+      ...createProjectDoc(),
+      boxArtAssetId: box,
+      music: {
+        source: { type: 'clip', assetId: clip },
+        sourceOffset: 0,
+        startAt: { type: 'first-gameplay' },
+        volume: 1,
+      },
+      scenes: [
+        newScene('gameplay', { id: clip }),
+        newScene('screenshot', { id: other }),
+        newScene('packshot'),
+      ],
+    }
+    expect(assetIdsInDoc(doc)).toEqual(new Set([box, clip, other]))
+
+    const cleaned = removeAssetReferences(doc, clip)
+    expect(cleaned.music.source).toEqual({ type: 'none' })
+    expect(cleaned.scenes).toHaveLength(3)
+    expect(assetIdsInDoc(cleaned)).toEqual(new Set([box, other]))
+    expect(removeAssetReferences(cleaned, box).boxArtAssetId).toBeNull()
   })
 })

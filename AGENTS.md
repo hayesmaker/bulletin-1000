@@ -47,7 +47,8 @@ Imports can use the `#/*` alias for `src/*`.
 - `src/routes/api/`: raw HTTP server routes (file uploads).
 - `src/server/media.handler.ts`: serves `/media/:assetId/(file|thumb)`. It's a **Nitro handler registered in `vite.config.ts`**, not a TanStack route. Nitro's dev server treats browser media requests (`Sec-Fetch-Dest: image/video/audio`, or URLs ending in a file extension) as static files and only passes them to Nitro-level handlers. Anything loaded by `<img>`, `<video>` or `<audio>` must be served this way.
 - `src/composition/`: the video template. `theme.ts` (all fonts, colours, layout and timings), `schedule.ts` (pure timing: project doc → scene and audio times, in whole frames), `scenes.ts` (DOM per scene type) and `composition.ts` (GSAP timeline, preview media sync, `renderFrame` for export).
-- `src/routes/projects/$projectId/preview.tsx`: preview player. `src/routes/render/$projectId.tsx`: bare 1440×1080 stage for the exporter, exposing `window.composition` once ready.
+- `src/routes/index.tsx`: project list. `src/routes/projects/$projectId/index.tsx`: the editor, built from `src/components/editor/` (details form, asset bin, scene list, scene inspector with the clip trimmer and caption editor). `useProjectDoc` autosaves the doc; pure doc edits (`newScene`, `moveScene`, `removeScene`, `removeAssetReferences`) live in `src/lib/project.ts`.
+- `src/routes/projects/$projectId/preview.tsx`: full-page preview player. `src/routes/render/$projectId.tsx`: bare 1440×1080 stage for the exporter, exposing `window.composition` once ready.
 - `drizzle/`: generated SQL migrations. Commit them; don't edit them by hand.
 - `DATA_DIR` (default `./data`, gitignored) holds `bulletin.db` and `media/<projectId>/<assetId>/`.
 

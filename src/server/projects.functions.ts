@@ -5,6 +5,7 @@ import { projectDocSchema } from '#/lib/project'
 import { getDb } from '#/server/db/client.server'
 import {
   findProject,
+  foreignAssetIds,
   insertProject,
   listProjects,
   removeProject,
@@ -35,7 +36,11 @@ export const createProject = createServerFn({ method: 'POST' })
 export const updateProject = createServerFn({ method: 'POST' })
   .validator(projectId.extend({ doc: projectDocSchema }))
   .handler(async ({ data }) => {
-    const project = saveProjectDoc(getDb(), data.id, data.doc)
+    const db = getDb()
+    if (foreignAssetIds(db, data.id, data.doc).length > 0) {
+      throw new Error('The project refers to assets it does not own')
+    }
+    const project = saveProjectDoc(db, data.id, data.doc)
     if (!project) throw notFound()
     return project
   })

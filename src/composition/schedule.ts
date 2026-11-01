@@ -57,6 +57,9 @@ export interface Schedule {
 
 export const toFrames = (seconds: number) => Math.round(seconds * stage.fps)
 export const snap = (seconds: number) => toFrames(seconds) / stage.fps
+// The last whole frame at or before a time, e.g. a clip's usable length.
+export const snapDown = (seconds: number) =>
+  Math.floor(seconds * stage.fps + 1e-6) / stage.fps
 
 function sceneDuration(scene: Scene, assets: Map<string, AssetInfo>) {
   if (scene.type !== 'gameplay') return scene.duration
