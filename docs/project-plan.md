@@ -75,11 +75,15 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 
 ### 2. Upload pipeline
 
-- [ ] Upload endpoint with size and duration limits
-- [ ] Probe uploads with ffprobe (duration, dimensions, audio streams)
-- [ ] Transcode gameplay clips to H.264/AAC, constant frame rate
-- [ ] Generate thumbnails for clips and images
-- [ ] Accept audio file uploads for the music track
+- [x] Upload endpoint with size and duration limits (`POST /api/projects/:id/assets?name=…`, raw file body streamed to disk). Limits: clips 100MB / 120s, audio 50MB / 10 min, images 20MB / 4096px
+- [x] Probe uploads with ffprobe (duration, dimensions, frame rate, audio streams)
+- [x] Transcode gameplay clips to H.264/AAC at a constant 25fps, square pixels, capped at 1440×1080 (smaller clips keep their native size)
+- [x] Generate thumbnails for clips and images
+- [x] Accept audio file uploads for the music track (transcoded to AAC)
+- [x] Serial background processing queue; interrupted jobs resume after a restart
+- [x] Serve media by asset ID (`/media/:assetId/file|thumb`) with Range support for seeking
+- [ ] Decide how to scale low-resolution gameplay into the inset (nearest-neighbour vs smooth). Clips currently keep their native size, so the composition decides.
+- [ ] Clean up asset references in the project doc when an asset is deleted (editor step)
 
 ### 3. Composition (GSAP template)
 

@@ -42,8 +42,10 @@ Imports can use the `#/*` alias for `src/*`.
 - `src/lib/`: code shared by client and server. `project.ts` holds the project document schema (Zod) and its types.
 - `src/server/`: server code. `*.server.ts` files are server-only (Start import protection). `*.functions.ts` files hold `createServerFn` wrappers and are safe to import from routes.
 - `src/server/db/`: Drizzle schema and the database client.
+- `src/server/assets.server.ts`: upload handling and the background processing queue. `ffmpeg.server.ts` wraps ffmpeg/ffprobe.
+- `src/routes/api/` and `src/routes/media/`: raw HTTP server routes (file uploads and media streaming). Media URLs must not end in a file extension, or Nitro's dev server treats them as static files and never reaches the route.
 - `drizzle/`: generated SQL migrations. Commit them; don't edit them by hand.
-- `DATA_DIR` (default `./data`, gitignored) holds `bulletin.db` and `media/<projectId>/`.
+- `DATA_DIR` (default `./data`, gitignored) holds `bulletin.db` and `media/<projectId>/<assetId>/`.
 
 ## Technical rules
 
