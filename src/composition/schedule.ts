@@ -125,6 +125,11 @@ function sceneDuration(
   return Math.max(trimOut - scene.trimIn, 1 / stage.fps)
 }
 
+// A splash's length: its own, plus the time it's held for.
+export function splashLength(splash: '1985' | '1989', hold: number) {
+  return snap(timing.splash[splash] + hold)
+}
+
 export function buildSchedule(
   doc: ProjectDoc,
   assetList: AssetInfo[],
@@ -139,7 +144,7 @@ export function buildSchedule(
   if (doc.splash !== 'none') {
     entries.push({
       item: { kind: 'splash', id: 'splash', splash: doc.splash },
-      length: timing.splash[doc.splash],
+      length: splashLength(doc.splash, doc.splashHold),
       transition: 'cut',
     })
   }

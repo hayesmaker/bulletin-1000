@@ -1,7 +1,7 @@
 import { keyframeCurve } from './curve'
 import type { Keyframes } from './curve'
 import type { CompositionAsset } from './scenes'
-import { brand, fonts, splash as theme, stage } from './theme'
+import { brand, fonts, splash as theme, stage, timing } from './theme'
 
 // The splash intros, recreated in code from the reference footage as
 // reinterpretations: the 1985 neon panel that flips in, and the static 1989
@@ -11,8 +11,9 @@ import { brand, fonts, splash as theme, stage } from './theme'
 export interface SplashLayer {
   el: HTMLElement
   images: HTMLImageElement[]
-  // Adds the splash's motion to the timeline, starting at `start`.
-  animate: (tl: gsap.core.Timeline, start: number) => void
+  // Adds the splash's motion to the timeline, from `start` to `end`. A
+  // splash longer than its own length holds on its last pose.
+  animate: (tl: gsap.core.Timeline, start: number, end: number) => void
 }
 
 // Fonts the splashes need loaded before rendering.
@@ -529,9 +530,11 @@ function splash1989(logo: CompositionAsset | undefined): SplashLayer {
   return {
     el,
     images,
-    animate: (tl, start) => {
+    animate: (tl, start, end) => {
       const [inStart, inEnd] = t.fadeIn
       const [outStart, outEnd] = t.fadeOut
+      // Held splashes stay up longer before fading out.
+      const hold = Math.max(0, end - start - timing.splash['1989'])
       tl.fromTo(
         scene,
         { opacity: 0 },
@@ -552,7 +555,7 @@ function splash1989(logo: CompositionAsset | undefined): SplashLayer {
           ease: 'none',
           immediateRender: false,
         },
-        start + outStart,
+        start + outStart + hold,
       )
     },
   }

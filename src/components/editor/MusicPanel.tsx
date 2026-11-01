@@ -1,9 +1,10 @@
 import { Form, InputNumber, Segmented, Select, Slider } from 'antd'
+import { MAX_SPLASH_HOLD } from '#/lib/project'
 import type { Music, ProjectDoc, Splash } from '#/lib/project'
-import { snap } from '#/composition/schedule'
+import { snap, splashLength } from '#/composition/schedule'
 import type { AssetRow } from '#/server/db/schema'
 import { AssetSelect } from './AssetSelect'
-import { sceneLabels } from './labels'
+import { formatSeconds, sceneLabels } from './labels'
 import type { UpdateDoc } from './useProjectDoc'
 
 interface Props {
@@ -59,6 +60,8 @@ export function MusicPanel({ doc, assets, update }: Props) {
       .map((a) => ({ value: a.id, label: a.originalName })),
   ]
 
+  const splashBase = doc.splash === 'none' ? 0 : splashLength(doc.splash, 0)
+
   const startValue =
     music.startAt.type === 'scene' ? music.startAt.sceneId : 'first-gameplay'
   const startOptions = [
@@ -80,6 +83,28 @@ export function MusicPanel({ doc, assets, update }: Props) {
       </Form.Item>
       {doc.splash !== 'none' && (
         <>
+          <Form.Item
+            label={`Splash length: ${formatSeconds(splashBase + doc.splashHold)}`}
+            extra={`Up to ${formatSeconds(MAX_SPLASH_HOLD)} longer than the original, holding on its last pose.`}
+          >
+            <Slider
+              ariaLabelForHandle="Splash length"
+              min={splashBase}
+              max={splashBase + MAX_SPLASH_HOLD}
+              step={0.1}
+              value={splashBase + doc.splashHold}
+              tooltip={{ open: false }}
+              onChange={(length) =>
+                update((d) => ({
+                  ...d,
+                  splashHold: Math.min(
+                    MAX_SPLASH_HOLD,
+                    Math.max(0, Math.round((length - splashBase) * 10) / 10),
+                  ),
+                }))
+              }
+            />
+          </Form.Item>
           <Form.Item
             label="Splash logo"
             extra="Shown instead of the built-in Bulletin 1000 lettering."

@@ -103,7 +103,7 @@ export function createComposition(
     captions.push(...built.captions)
     images.push(...built.images)
     if (built.video) videos.push(built.video)
-    built.animate?.(tl, item.start)
+    built.animate?.(tl, item.start, item.end)
 
     if (item.dissolve > 0) {
       tl.fromTo(

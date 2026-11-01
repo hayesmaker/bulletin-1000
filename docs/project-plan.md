@@ -143,6 +143,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [x] 1989 ident: lit 3D shapes with floor shadows, chrome "Bulletin 1000" lettering with a reflection and "VISUAL COMMUNICATIONS" between rules, on a blue gradient. It fades in over 0.4s and out at 6.36–6.92s (7s), as in the original.
 - [x] Built-in 1989 jingle: an original synth ident (D major, ~150 bpm), synthesised deterministically in `src/server/jingle.server.ts`, cached under `DATA_DIR/generated/` and served at `/audio/jingle-1989`
 - [x] User options: splash logo image instead of the lettering; splash sound as built-in, none or an uploaded file
+- [x] Splash length: hold the splash on its last pose for up to 3s longer (Audio tab slider). The 1989 fade-out moves later; the jingle keeps its own length
 - [ ] Optional VHS softness on the splash (effects milestone)
 
 ## Later milestones

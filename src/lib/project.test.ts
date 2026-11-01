@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_DUCKING,
+  MAX_SPLASH_HOLD,
   assetIdsInDoc,
   createProjectDoc,
   moveScene,
@@ -235,5 +236,14 @@ describe('voice lines', () => {
       duckMusic: true,
     })
     expect(parsed.scenes[0].voiceLine).toBeNull()
+  })
+
+  it('gives older docs no splash hold, and caps it', () => {
+    const { splashHold: _, ...old } = base
+    expect(projectDocSchema.parse(old).splashHold).toBe(0)
+    expect(
+      projectDocSchema.safeParse({ ...base, splashHold: MAX_SPLASH_HOLD + 1 })
+        .success,
+    ).toBe(false)
   })
 })

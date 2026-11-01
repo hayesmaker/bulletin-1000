@@ -79,6 +79,24 @@ describe('buildSchedule', () => {
     expect(s.items[1]).toMatchObject({ start: 7, end: 11 })
   })
 
+  it('holds the splash for longer, in whole frames', () => {
+    const s = buildSchedule(
+      doc({ splash: '1985', splashHold: 1.5, scenes: [card('packshot', 4)] }),
+      assets,
+    )
+    expect(s.items[0]).toMatchObject({ kind: 'splash', start: 0, end: 3.92 })
+    expect(s.items[1]).toMatchObject({ start: 3.92, end: 7.92 })
+  })
+
+  it('keeps the jingle its own length under a held splash', () => {
+    const s = buildSchedule(
+      doc({ splash: '1989', splashHold: 2, scenes: [card('packshot', 4)] }),
+      assets,
+    )
+    expect(s.items[0].end).toBe(9)
+    expect(s.jingle).toMatchObject({ start: 0, end: 7 })
+  })
+
   it('overlaps dissolves and caps them at half a scene', () => {
     const s = buildSchedule(
       doc({

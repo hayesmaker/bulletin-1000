@@ -153,6 +153,9 @@ export const DEFAULT_NARRATION = { voiceId: null, volume: 1, duckMusic: true }
 
 export const splashSchema = z.enum(['none', '1985', '1989'])
 
+// Seconds a splash can be held for beyond its own length.
+export const MAX_SPLASH_HOLD = 3
+
 export const projectDocSchema = z.object({
   version: z.literal(PROJECT_DOC_VERSION),
   title: z.string().max(100),
@@ -172,6 +175,8 @@ export const projectDocSchema = z.object({
       z.object({ type: z.literal('upload'), assetId: id }),
     ])
     .default({ type: 'built-in' }),
+  // Extra seconds the splash holds on its last pose before the first scene.
+  splashHold: z.number().min(0).max(MAX_SPLASH_HOLD).default(0),
   music: musicSchema,
   narration: narrationSchema.default(DEFAULT_NARRATION),
   scenes: z.array(sceneSchema).max(50),
@@ -202,6 +207,7 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
     splash: 'none',
     splashLogoAssetId: null,
     splashJingle: { type: 'built-in' },
+    splashHold: 0,
     music: {
       source: { type: 'none' },
       sourceOffset: 0,

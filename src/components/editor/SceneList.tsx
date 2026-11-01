@@ -24,6 +24,7 @@ import type {
   VoiceLineStatus,
 } from '#/lib/project'
 import type { AssetRow } from '#/server/db/schema'
+import { splashLength } from '#/composition/schedule'
 import { formatSeconds, sceneIcons, sceneLabels, thumbUrl } from './labels'
 
 interface Props {
@@ -82,6 +83,9 @@ export function SceneList({
       {doc.splash !== 'none' && (
         <div className="flex items-center gap-3 rounded border border-dashed border-neutral-300 px-3 py-2 text-neutral-500">
           {doc.splash} splash intro
+          <span className="ml-auto text-xs">
+            {formatSeconds(splashLength(doc.splash, doc.splashHold))}
+          </span>
         </div>
       )}
       <DndContext
