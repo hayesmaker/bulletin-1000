@@ -41,7 +41,7 @@ Monetisation:
 - **Video format: short promo (30–90s), one game per video**, following the structure of the original Bulletin 1000 promos (see the style guide below).
 - **Captions first, narration later.** Like the originals, the MVP relies on on-screen captions and game audio. ElevenLabs TTS (voiceover only, no on-screen presenter) moves to a later milestone.
 - **Scene timing:** a gameplay scene lasts as long as its trimmed clip. Card scenes (packshot, title, still screenshot) have a duration the user sets, with sensible defaults.
-- **Audio (MVP):** one **continuous music track** (usually the game's own music) runs under the whole promo after the splash and does not restart per scene. It can be an uploaded audio file or the audio taken from one of the gameplay clips. Gameplay clip audio is muted by default, with an optional per-scene "keep clip audio" switch mixed over the music. The splash jingle plays when a splash is selected.
+- **Audio (MVP):** one **continuous music track** (usually the game's own music) runs continuously once it starts and does not restart per scene. Its **start point is the user's choice** and defaults to the start of the first gameplay scene, as in the originals, where the intro cards before it play without music. It can be an uploaded audio file or the audio taken from one of the gameplay clips. Gameplay clip audio is muted by default, with an optional per-scene "keep clip audio" switch mixed over the music. The splash jingle plays when a splash is selected.
 - **Output: 1440×1080 at 25fps** (4:3, PAL-era frame rate). H.264/AAC MP4.
 - **Fonts:** a free Helvetica-style sans for captions and packshot text, plus custom-designed chunky logo type for the 1985 splash. Font choices are defined once in the template theme config so they are easy to change.
 - **Splash intros are recreated in code**, not taken from the original footage: the 1985 neon grid uses GSAP/canvas, and the 1989 3D shapes use three.js. The jingle is a sound-alike. Splash is an optional, selectable intro.
@@ -66,10 +66,12 @@ Reference clips live in `reference/` (gitignored, not committed). They are 1280�
 1. **Splash (optional)**
    - **1985:** the "BULLETIN 1000 / Video Magazine" logo in yellow/orange chunky type over a cyan neon wireframe grid in perspective, on black.
    - **1989:** a 3D blue triangle, green disc and yellow square above chrome "Bulletin 1000" text with "VISUAL COMMUNICATIONS" underneath, on a blue vertical gradient. It plays with a jingle and fades to black.
-2. **Packshot card:** a solid colour background (royal blue in 1985; green, olive or a tiled pattern in 1987). Box art sits on the left, with the title and **price/platform pairs** on the right (e.g. "£7.95 Spectrum", "£8.95 C64/BBC B Amstrad") in yellow/white sans type. There's often a thin yellow horizontal rule.
-3. **Publisher logo or title screen card (optional).**
-4. **Gameplay:** the game screen as a 4:3 inset on black, with a white sans caption underneath reading **"GAME TITLE – Publisher"**. Optional overlay captions call out selling points ("DANGEROUS CHALLENGE", "SUPERB GRAPHICS", "FRENZIED FUN WITH FRED FLINTSTONE").
-5. **Packshot card again** as the outro, sometimes cutting to a solid colour at the very end.
+2. **Publisher logo card (optional)**, e.g. Ocean or Thor.
+3. **Packshot card:** a solid colour background (royal blue in 1985; green, olive or a tiled pattern in 1987). Box art sits on the left, with the title and **price/platform pairs** on the right (e.g. "£7.95 Spectrum", "£8.95 C64/BBC B Amstrad") in yellow/white sans type. There's often a thin yellow horizontal rule.
+4. **Title screen card (optional).**
+5. **Gameplay:** the game music cuts in with the first gameplay clip (and the narration would too, in narrated promos).
+   The game screen is a 4:3 inset on black, with a white sans caption underneath reading **"GAME TITLE – Publisher"**. Optional overlay captions call out selling points ("DANGEROUS CHALLENGE", "SUPERB GRAPHICS", "FRENZIED FUN WITH FRED FLINTSTONE").
+6. **Packshot card again** as the outro, sometimes cutting to a solid colour at the very end.
 
 Cuts are mostly hard cuts or short dissolves.
 
@@ -87,13 +89,13 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin-
    - an ordered scene list, where each scene has a type, an asset, trim points or a duration, and overlay captions
 2. **Upload pipeline**: cover art, screenshots and gameplay clips go to disk. ffmpeg transcodes and probes them (duration, dimensions) and generates thumbnails.
 3. **Editor UI** (Ant Design): a game details form, an asset bin, an ordered scene list, a clip trimmer, a caption editor and a splash picker.
-4. **Composition**: the template built with GSAP (splash → packshot → optional title card → gameplay scenes → packshot outro). The preview plays in the editor.
+4. **Composition**: the template built with GSAP (splash → optional publisher logo → packshot → optional title card → gameplay scenes → packshot outro; the user can reorder the intro cards). The preview plays in the editor.
 5. **Splash recreations**: 1985 neon grid (GSAP/canvas) and 1989 3D shapes (three.js), plus a sound-alike jingle.
 6. **Export**: a render job (SQLite-backed queue, one worker) runs Playwright, captures frames and passes them to ffmpeg, which mixes in the clip audio and jingle. The resulting MP4 goes on disk with a download link.
 
 ## Later milestones
 
-- ElevenLabs TTS narration (server-side key, curated voices, rate limiting, audio cached by hash of text and voice). Each scene can have an optional voice line that extends the scene's length.
+- ElevenLabs TTS narration (server-side key, curated voices, rate limiting, audio cached by hash of text and voice). Each scene can have an optional voice line that extends the scene's length. By default narration starts together with the music at the first gameplay scene, but this is user-selectable.
 - 16:9 and 9:16 layouts
 - Filter effects (CRT, VHS grain, scanlines, colour bleed), most likely as WebGL shaders so preview and export match
 - Clerk auth and the My Videos page (list, re-edit, download)
