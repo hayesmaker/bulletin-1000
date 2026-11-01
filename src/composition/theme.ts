@@ -33,7 +33,7 @@ export const colours = {
 
 // How gameplay and stills are scaled into the inset. 'smooth' looks like the
 // analogue originals; 'pixelated' keeps low-res pixel art crisp.
-export const insetScaling: 'smooth' | 'pixelated' = 'smooth'
+export const insetScaling: 'smooth' | 'pixelated' = 'pixelated'
 
 export const layout = {
   // The 4:3 game screen inset, used by gameplay, screenshot and title scenes.

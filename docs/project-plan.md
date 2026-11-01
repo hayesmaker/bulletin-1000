@@ -96,7 +96,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [x] Preview player with audio sync (music start point and fade-out, "keep clip audio")
 - [x] Render page (`/render/:projectId`) exposing `window.composition.renderFrame(n)` for the exporter
 - [x] `npm run seed:demo` to create a demo project before the editor exists
-- [ ] Decide inset scaling for low-res gameplay: `insetScaling` in the theme is `'smooth'` (like the analogue originals); `'pixelated'` keeps pixel art crisp. Could become a per-project option.
+- [x] Inset scaling for low-res gameplay: `insetScaling` in the theme defaults to `'pixelated'` (crisp pixel art; decided 2026-11-01). `'smooth'` looks more like the analogue originals. Could become a per-project option later.
 - [ ] Replace the splash placeholder card (step 6)
 
 ### 4. Editor UI
