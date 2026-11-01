@@ -2,11 +2,13 @@ bulletin-1000-generator is a web app that lets users generate their own Bulletin
 
 ## Project plan
 
-The plan, decisions, reference style guide and task checklists live in [`docs/project-plan.md`](docs/project-plan.md). Read it before starting work.
+The plan, decisions and task checklists live in [`docs/project-plan.md`](docs/project-plan.md). Read it before starting work.
 
 - Tick off checklist items as they're completed.
 - Add newly discovered tasks.
 - Record changed decisions there, with the date.
+
+The visual and structural reference for the video template (promo structure, splash, packshot and caption styles) is in [`docs/style-guide.md`](docs/style-guide.md). Read it before working on the composition.
 
 ## Tech stack
 
