@@ -9,16 +9,22 @@ import {
 } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import { DEFAULT_GAMEPLAY_LENGTH, sceneLength } from '#/lib/project'
-import type { Scene, Transition } from '#/lib/project'
+import type { ProjectDoc, Scene, Transition } from '#/lib/project'
 import { snap, snapDown } from '#/composition/schedule'
 import { stage } from '#/composition/theme'
 import type { AssetRow } from '#/server/db/schema'
 import { AssetSelect } from './AssetSelect'
 import { CaptionEditor } from './CaptionEditor'
 import { ClipTrimmer } from './ClipTrimmer'
+import { VoiceLineEditor } from './VoiceLineEditor'
+import type { NarrationState } from './useNarration'
 import { sceneIcons, sceneLabels } from './labels'
 
 interface Props {
+  doc: ProjectDoc
+  narration: NarrationState
+  // Whether this scene's voice line overlaps another.
+  voiceOverlaps: boolean
   scene: Scene
   // The project's music level under clip audio, used unless the scene sets
   // its own.
@@ -33,6 +39,9 @@ const MAX_CARD_DURATION = 30
 
 // Settings for the selected scene.
 export function SceneInspector({
+  doc,
+  narration,
+  voiceOverlaps,
   scene,
   projectDuckLevel,
   index,
@@ -179,7 +188,7 @@ export function SceneInspector({
                 label="Music level under this clip"
                 extra={
                   scene.duckLevel === null ? (
-                    'The project setting, from Music & splash.'
+                    'The project setting, from the Audio tab.'
                   ) : (
                     <>
                       This scene’s own level.{' '}
@@ -220,6 +229,16 @@ export function SceneInspector({
             />
           </Form.Item>
         )}
+
+        <Form.Item label="Voice line">
+          <VoiceLineEditor
+            doc={doc}
+            scene={scene}
+            overlaps={voiceOverlaps}
+            narration={narration}
+            onChange={(voiceLine) => onChange({ ...scene, voiceLine })}
+          />
+        </Form.Item>
       </Form>
     </div>
   )

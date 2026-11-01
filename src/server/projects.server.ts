@@ -4,10 +4,11 @@ import {
   assetIdsInDoc,
   createProjectDoc,
   projectDocSchema,
+  voiceClipIdsInDoc,
 } from '#/lib/project'
 import type { ProjectDoc } from '#/lib/project'
 import { projectMediaDir } from '#/server/config.server'
-import { assets, projects } from '#/server/db/schema'
+import { assets, projects, voiceClips } from '#/server/db/schema'
 import type { ProjectRow } from '#/server/db/schema'
 import type { Db } from '#/server/db/client.server'
 
@@ -69,6 +70,22 @@ export function foreignAssetIds(db: Db, projectId: string, doc: ProjectDoc) {
       .map((a) => a.id),
   )
   return ids.filter((id) => !owned.has(id))
+}
+
+// Voice clip ids in the doc that don't exist (the editor only ever gets
+// them from generateVoiceLine).
+export function unknownVoiceClipIds(db: Db, doc: ProjectDoc) {
+  const ids = [...voiceClipIdsInDoc(doc)]
+  if (ids.length === 0) return []
+  const known = new Set(
+    db
+      .select({ id: voiceClips.id })
+      .from(voiceClips)
+      .where(inArray(voiceClips.id, ids))
+      .all()
+      .map((c) => c.id),
+  )
+  return ids.filter((id) => !known.has(id))
 }
 
 // Deletes the project, its asset rows (by cascade) and its media on disk.

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { projectMediaDir } from '#/server/config.server'
 import { openDb } from '#/server/db/client.server'
 import type { Db } from '#/server/db/client.server'
-import { assets } from '#/server/db/schema'
+import { assets, voiceClips } from '#/server/db/schema'
 import {
   findProject,
   foreignAssetIds,
@@ -13,6 +13,7 @@ import {
   listProjects,
   removeProject,
   saveProjectDoc,
+  unknownVoiceClipIds,
 } from './projects.server'
 
 let tmp: string
@@ -95,6 +96,7 @@ describe('projects', () => {
             assetId: missing,
             duration: 3,
             transitionIn: 'cut',
+            voiceLine: null,
           },
         ],
       }),
@@ -123,5 +125,33 @@ describe('projects', () => {
     expect(db.select().from(assets).all()).toHaveLength(0)
     expect(fs.existsSync(dir)).toBe(false)
     expect(await removeProject(db, project.id)).toBe(false)
+  })
+})
+
+describe('unknownVoiceClipIds', () => {
+  it('flags voice clips that were never generated', () => {
+    const project = insertProject(db, 'Gyroscope')
+    const known = 'a'.repeat(64)
+    const made = 'b'.repeat(64)
+    db.insert(voiceClips)
+      .values({ id: known, provider: 'stand-in', voiceId: 'v', path: 'voice/a.mp3', duration: 1, characters: 3 })
+      .run() // prettier-ignore
+    const line = (id: string) => ({
+      text: 'Hi',
+      offset: 0,
+      clip: { id, duration: 1, text: 'Hi', voiceId: 'v' },
+    })
+    const doc = {
+      ...project.doc,
+      scenes: [
+        { ...project.doc.scenes[0], voiceLine: line(known) },
+        {
+          ...project.doc.scenes[0],
+          id: crypto.randomUUID(),
+          voiceLine: line(made),
+        },
+      ],
+    }
+    expect(unknownVoiceClipIds(db, doc)).toEqual([made])
   })
 })

@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { DEFAULT_DUCKING, createProjectDoc } from '#/lib/project'
 import type { ProjectDoc, Scene } from '#/lib/project'
 import {
+  VOICE_LINE_TAIL,
   buildSchedule,
   itemsAt,
   musicGain,
+  narrationOverlaps,
   snapDown,
   toFrames,
 } from './schedule'
@@ -25,6 +27,7 @@ const card = (type: 'packshot', duration: number): Scene => ({
   type,
   duration,
   transitionIn: 'cut',
+  voiceLine: null,
 })
 
 const gameplay = (overrides: Partial<Scene> = {}): Scene =>
@@ -39,6 +42,7 @@ const gameplay = (overrides: Partial<Scene> = {}): Scene =>
     duckLevel: null,
     captions: [],
     transitionIn: 'cut',
+    voiceLine: null,
     ...overrides,
   }) as Scene
 
@@ -347,5 +351,116 @@ describe('buildSchedule', () => {
       )
       expect(s.jingle).toBeNull()
     })
+  })
+})
+
+describe('narration', () => {
+  const clip = (text: string, duration: number, voiceId = 'v1') => ({
+    id: 'a'.repeat(63) + String(Math.round(duration)),
+    duration,
+    text,
+    voiceId,
+  })
+  const withLine = (
+    scene: Scene,
+    text: string,
+    duration: number,
+    offset = 0.4,
+    voiceId = 'v1',
+  ): Scene => ({
+    ...scene,
+    voiceLine: { text, offset, clip: clip(text, duration, voiceId) },
+  })
+  const narrated = (scenes: Scene[], extra: Partial<ProjectDoc> = {}) =>
+    doc({
+      narration: { voiceId: 'v1', volume: 0.9, duckMusic: true },
+      scenes,
+      ...extra,
+    })
+
+  it('stretches a card to hold its line, plus a tail', () => {
+    const s = buildSchedule(
+      narrated([withLine(card('packshot', 2), 'Out now!', 3)]),
+      assets,
+    )
+    // 0.4 + 3 + 0.5, rounded to a whole frame.
+    expect(VOICE_LINE_TAIL).toBe(0.5)
+    expect(s.duration).toBe(3.92)
+    expect(s.narration).toEqual([
+      {
+        sceneId: s.items[0].id,
+        clipId: expect.any(String),
+        start: 0.4,
+        end: 3.4,
+      },
+    ])
+    expect(s.narrationVolume).toBe(0.9)
+    // A short line leaves the card alone.
+    const short = buildSchedule(
+      narrated([withLine(card('packshot', 6), 'Hi', 1)]),
+      assets,
+    )
+    expect(short.duration).toBe(6)
+  })
+
+  it('lets a line run on past a gameplay scene, and flags overlaps', () => {
+    const play = withLine(gameplay(), 'A long line over the action', 8, 0.4)
+    const next = withLine(card('packshot', 4), 'Out now', 1, 0)
+    const s = buildSchedule(narrated([play, next]), assets)
+    // Gameplay keeps its 6s; the line runs to 8.4s, into the packshot.
+    expect(s.items.map((i) => [i.start, i.end])).toEqual([
+      [0, 6],
+      [6, 10],
+    ])
+    expect(s.narration.map((c) => [c.start, c.end])).toEqual([
+      [0.4, 8.4],
+      [6, 7],
+    ])
+    expect(narrationOverlaps(s)).toEqual([{ first: play.id, second: next.id }])
+  })
+
+  it('skips lines that need generating', () => {
+    const line = withLine(card('packshot', 2), 'Old text', 3)
+    const edited: Scene = {
+      ...line,
+      voiceLine: { ...line.voiceLine!, text: 'New text' },
+    }
+    const s = buildSchedule(narrated([edited]), assets)
+    expect(s.narration).toEqual([])
+    expect(s.duration).toBe(2)
+    // Another voice makes it stale too.
+    const otherVoice = buildSchedule(
+      narrated([line], {
+        narration: { voiceId: 'v2', volume: 1, duckMusic: true },
+      }),
+      assets,
+    )
+    expect(otherVoice.narration).toEqual([])
+  })
+
+  it('ducks the music under narration', () => {
+    const scenes = [
+      card('packshot', 4),
+      withLine(card('packshot', 4), 'Line', 2, 0.4),
+    ]
+    const music: ProjectDoc['music'] = {
+      source: { type: 'upload', assetId: tuneId },
+      sourceOffset: 0,
+      startAt: { type: 'scene', sceneId: scenes[0].id },
+      volume: 1,
+      ducking: { level: 0.4, ramp: 0.25 },
+    }
+    const s = buildSchedule(narrated(scenes, { music }), assets)
+    expect(s.music?.ducking.windows).toEqual([
+      { start: 4.4, end: 6.4, level: 0.4 },
+    ])
+    const off = buildSchedule(
+      narrated(scenes, {
+        music,
+        narration: { voiceId: 'v1', volume: 1, duckMusic: false },
+      }),
+      assets,
+    )
+    expect(off.music?.ducking.windows).toEqual([])
   })
 })

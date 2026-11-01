@@ -90,6 +90,26 @@ export const renders = sqliteTable(
   (t) => [index('renders_project_id_idx').on(t.projectId)],
 )
 
+// Generated narration audio, cached across projects. The id is a hash of
+// everything that shaped the audio (see src/server/tts.server.ts), so the
+// same line in the same voice is only ever generated once.
+export const voiceClips = sqliteTable(
+  'voice_clips',
+  {
+    id: text('id').primaryKey(),
+    provider: text('provider').notNull(),
+    voiceId: text('voice_id').notNull(),
+    // Relative to the data directory.
+    path: text('path').notNull(),
+    duration: real('duration').notNull(),
+    // Billed characters, for the daily limit.
+    characters: integer('characters').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index('voice_clips_created_at_idx').on(t.createdAt)],
+)
+
 export type ProjectRow = typeof projects.$inferSelect
 export type AssetRow = typeof assets.$inferSelect
 export type RenderRow = typeof renders.$inferSelect
+export type VoiceClipRow = typeof voiceClips.$inferSelect

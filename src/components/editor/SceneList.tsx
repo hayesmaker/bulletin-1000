@@ -15,15 +15,22 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Button, Dropdown, Tag } from 'antd'
-import { HolderOutlined, PlusOutlined } from '@ant-design/icons'
-import { sceneLength } from '#/lib/project'
-import type { ProjectDoc, Scene, SceneType } from '#/lib/project'
+import { AudioOutlined, HolderOutlined, PlusOutlined } from '@ant-design/icons'
+import { sceneLength, voiceLineStatus } from '#/lib/project'
+import type {
+  ProjectDoc,
+  Scene,
+  SceneType,
+  VoiceLineStatus,
+} from '#/lib/project'
 import type { AssetRow } from '#/server/db/schema'
 import { formatSeconds, sceneIcons, sceneLabels, thumbUrl } from './labels'
 
 interface Props {
   doc: ProjectDoc
   assets: Map<string, AssetRow>
+  // Each scene's length as scheduled.
+  lengths: Map<string, number>
   selectedId: string | undefined
   onSelect: (sceneId: string) => void
   onMove: (from: number, to: number) => void
@@ -36,6 +43,7 @@ const sceneTypes = Object.keys(sceneLabels) as SceneType[]
 export function SceneList({
   doc,
   assets,
+  lengths,
   selectedId,
   onSelect,
   onMove,
@@ -99,6 +107,8 @@ export function SceneList({
                     : ('assetId' in scene && scene.assetId) || '',
                 ),
               )}
+              voice={voiceLineStatus(doc, scene)}
+              length={lengths.get(scene.id) ?? sceneLength(scene)}
               selected={scene.id === selectedId}
               onSelect={() => onSelect(scene.id)}
             />
@@ -116,12 +126,16 @@ function SceneRow({
   index,
   scene,
   thumb,
+  voice,
+  length,
   selected,
   onSelect,
 }: {
   index: number
   scene: Scene
   thumb: string | undefined
+  voice: VoiceLineStatus
+  length: number
   selected: boolean
   onSelect: () => void
 }) {
@@ -170,11 +184,22 @@ function SceneRow({
       <div className="min-w-0 flex-1">
         <div className="font-medium">{sceneLabels[scene.type]}</div>
         <div className="text-xs text-neutral-500">
-          {formatSeconds(sceneLength(scene))}
+          {formatSeconds(length)}
           {captions > 0 && ` · ${captions} caption${captions > 1 ? 's' : ''}`}
           {scene.type === 'gameplay' && scene.keepClipAudio && ' · clip audio'}
         </div>
       </div>
+      {voice === 'needs-generating' && (
+        <Tag color="warning" icon={<AudioOutlined />}>
+          Generate
+        </Tag>
+      )}
+      {voice === 'ready' && (
+        <AudioOutlined
+          aria-label="Has a voice line"
+          className="text-neutral-500"
+        />
+      )}
       {scene.transitionIn === 'dissolve' && <Tag>Dissolve</Tag>}
     </div>
   )

@@ -96,8 +96,15 @@ const scenes: Array<Scene> = [
     assetId: logoAsset?.id ?? null,
     duration: 2.5,
     transitionIn: 'cut',
+    voiceLine: null,
   },
-  { id: id(), type: 'packshot', duration: 4, transitionIn: 'cut' },
+  {
+    id: id(),
+    type: 'packshot',
+    duration: 4,
+    transitionIn: 'cut',
+    voiceLine: null,
+  },
   ...(titleAsset
     ? [
         {
@@ -106,6 +113,7 @@ const scenes: Array<Scene> = [
           assetId: titleAsset.id,
           duration: 3,
           transitionIn: 'cut' as const,
+          voiceLine: null,
         },
       ]
     : []),
@@ -119,12 +127,19 @@ const scenes: Array<Scene> = [
     duckMusic: true,
     duckLevel: null,
     transitionIn: i === 0 ? 'cut' : 'dissolve',
+    voiceLine: null,
     captions:
       i === 0
         ? [{ id: id(), text: 'Superb graphics', start: 1, end: 3.5 }]
         : [],
   })),
-  { id: id(), type: 'packshot', duration: 4, transitionIn: 'cut' },
+  {
+    id: id(),
+    type: 'packshot',
+    duration: 4,
+    transitionIn: 'cut',
+    voiceLine: null,
+  },
 ]
 
 const doc: ProjectDoc = {

@@ -1,6 +1,16 @@
 import { useMemo, useState } from 'react'
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { App, Button, Card, Drawer, Space, Tabs, Tag, Tooltip } from 'antd'
+import {
+  App,
+  Button,
+  Card,
+  Divider,
+  Drawer,
+  Space,
+  Tabs,
+  Tag,
+  Tooltip,
+} from 'antd'
 import {
   ArrowLeftOutlined,
   ExportOutlined,
@@ -10,7 +20,11 @@ import {
 } from '@ant-design/icons'
 import compositionCss from '#/composition/composition.css?url'
 import { toCompositionAssets } from '#/composition/assets'
-import { snapDown } from '#/composition/schedule'
+import {
+  buildSchedule,
+  narrationOverlaps,
+  snapDown,
+} from '#/composition/schedule'
 import { CompositionPlayer } from '#/components/CompositionPlayer'
 import type { SceneSeek } from '#/components/CompositionPlayer'
 import { AssetBin } from '#/components/editor/AssetBin'
@@ -18,9 +32,11 @@ import type { AssetUse } from '#/components/editor/AssetBin'
 import { DetailsForm } from '#/components/editor/DetailsForm'
 import { ExportPanel } from '#/components/editor/ExportPanel'
 import { MusicPanel } from '#/components/editor/MusicPanel'
+import { NarrationPanel } from '#/components/editor/NarrationPanel'
 import { SceneInspector } from '#/components/editor/SceneInspector'
 import { SceneList } from '#/components/editor/SceneList'
 import { useAssets } from '#/components/editor/useAssets'
+import { useNarration } from '#/components/editor/useNarration'
 import { useDebounced, useProjectDoc } from '#/components/editor/useProjectDoc'
 import type { SaveStatus } from '#/components/editor/useProjectDoc'
 import {
@@ -28,6 +44,7 @@ import {
   newScene,
   removeAssetReferences,
   removeScene,
+  scenesNeedingVoice,
 } from '#/lib/project'
 import type { ProjectDoc, SceneType } from '#/lib/project'
 import { deleteAsset, getAssets } from '#/server/assets.functions'
@@ -76,6 +93,7 @@ function Editor() {
     error,
   } = useProjectDoc(project.id, project.doc)
   const { assets, added, removed } = useAssets(project.id, initialAssets)
+  const narration = useNarration(update)
   const [selectedId, setSelectedId] = useState<string | undefined>(
     doc.scenes[0]?.id,
   )
@@ -102,6 +120,26 @@ function Editor() {
     [readyKey],
   )
   const previewDoc = useDebounced(doc, PREVIEW_DELAY)
+  const schedule = useMemo(
+    () => buildSchedule(doc, compositionAssets),
+    [doc, compositionAssets],
+  )
+  // Scene lengths as played (cards stretch to fit their voice lines).
+  const sceneLengths = useMemo(
+    () => new Map(schedule.items.map((i) => [i.id, i.end - i.start])),
+    [schedule],
+  )
+  // Scenes whose voice lines overlap another line.
+  const overlapping = useMemo(
+    () =>
+      new Set(
+        narrationOverlaps(schedule).flatMap((pair) => [
+          pair.first,
+          pair.second,
+        ]),
+      ),
+    [schedule],
+  )
 
   const selectedIndex = doc.scenes.findIndex((s) => s.id === selectedId)
   const selected = doc.scenes[selectedIndex] as
@@ -246,10 +284,18 @@ function Editor() {
                 ),
               },
               {
-                key: 'music',
-                label: 'Music & splash',
+                key: 'audio',
+                label: 'Audio',
                 children: (
-                  <MusicPanel doc={doc} assets={assets} update={update} />
+                  <>
+                    <MusicPanel doc={doc} assets={assets} update={update} />
+                    <Divider titlePlacement="start">Narration</Divider>
+                    <NarrationPanel
+                      doc={doc}
+                      update={update}
+                      narration={narration}
+                    />
+                  </>
                 ),
               },
             ]}
@@ -268,6 +314,7 @@ function Editor() {
             <SceneList
               doc={doc}
               assets={assetMap}
+              lengths={sceneLengths}
               selectedId={selectedId}
               onSelect={selectScene}
               onMove={(from, to) => update((d) => moveScene(d, from, to))}
@@ -281,6 +328,9 @@ function Editor() {
             <SceneInspector
               key={selected.id}
               scene={selected}
+              doc={doc}
+              narration={narration}
+              voiceOverlaps={overlapping.has(selected.id)}
               projectDuckLevel={doc.music.ducking.level}
               index={selectedIndex}
               assets={assets}
@@ -312,7 +362,13 @@ function Editor() {
         size="large"
         destroyOnHidden
       >
-        <ExportPanel projectId={project.id} saved={status === 'saved'} />
+        <ExportPanel
+          projectId={project.id}
+          saved={status === 'saved'}
+          voiceLinesToGenerate={scenesNeedingVoice(doc).length}
+          generatingVoice={narration.generating.size > 0}
+          onGenerateVoice={() => void narration.generateAll(doc)}
+        />
       </Drawer>
     </div>
   )

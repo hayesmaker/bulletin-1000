@@ -32,9 +32,36 @@ export const captionSchema = z
 
 export const transitionSchema = z.enum(['cut', 'dissolve'])
 
+// ElevenLabs voice ids, and the stand-in's.
+export const voiceIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/)
+// A generated voice clip: a sha256 of what it was made from (see
+// src/server/tts.server.ts).
+export const voiceClipIdSchema = z.string().regex(/^[0-9a-f]{64}$/)
+
+export const MAX_VOICE_LINE_LENGTH = 500
+export const DEFAULT_VOICE_LINE_OFFSET = 0.4
+
+// Narration spoken over a scene, starting `offset` seconds into it. `clip`
+// is the generated audio and the text and voice it was made from; the line
+// needs generating again when either has changed since.
+export const voiceLineSchema = z.object({
+  text: z.string().max(MAX_VOICE_LINE_LENGTH),
+  offset: seconds.max(30).default(DEFAULT_VOICE_LINE_OFFSET),
+  clip: z
+    .object({
+      id: voiceClipIdSchema,
+      duration: z.number().positive(),
+      text: z.string(),
+      voiceId: voiceIdSchema,
+    })
+    .nullable()
+    .default(null),
+})
+
 const sceneBase = {
   id,
   transitionIn: transitionSchema.default('cut'),
+  voiceLine: voiceLineSchema.nullable().default(null),
 }
 
 const cardDuration = z.number().positive().max(30)
@@ -114,6 +141,16 @@ export const musicSchema = z.object({
     .default(DEFAULT_DUCKING),
 })
 
+export const narrationSchema = z.object({
+  // Null until a voice is chosen.
+  voiceId: voiceIdSchema.nullable().default(null),
+  volume: z.number().min(0).max(1).default(1),
+  // Lower the music (to the project's ducking level) while a line plays.
+  duckMusic: z.boolean().default(true),
+})
+
+export const DEFAULT_NARRATION = { voiceId: null, volume: 1, duckMusic: true }
+
 export const splashSchema = z.enum(['none', '1985', '1989'])
 
 export const projectDocSchema = z.object({
@@ -136,6 +173,7 @@ export const projectDocSchema = z.object({
     ])
     .default({ type: 'built-in' }),
   music: musicSchema,
+  narration: narrationSchema.default(DEFAULT_NARRATION),
   scenes: z.array(sceneSchema).max(50),
 })
 
@@ -146,6 +184,8 @@ export type SceneType = Scene['type']
 export type Transition = z.infer<typeof transitionSchema>
 export type Music = z.infer<typeof musicSchema>
 export type Splash = z.infer<typeof splashSchema>
+export type VoiceLine = z.infer<typeof voiceLineSchema>
+export type Narration = z.infer<typeof narrationSchema>
 export type ProjectDoc = z.infer<typeof projectDocSchema>
 
 export const DEFAULT_PACKSHOT_COLOUR = '#1b23aa'
@@ -169,11 +209,13 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
       volume: 1,
       ducking: DEFAULT_DUCKING,
     },
+    narration: DEFAULT_NARRATION,
     scenes: [
       {
         id: crypto.randomUUID(),
         type: 'packshot',
         transitionIn: 'cut',
+        voiceLine: null,
         duration: DEFAULT_CARD_DURATION,
       },
     ],
@@ -190,7 +232,11 @@ export function newScene(
   type: SceneType,
   asset?: { id: string; duration?: number },
 ): Scene {
-  const base = { id: crypto.randomUUID(), transitionIn: 'cut' as const }
+  const base = {
+    id: crypto.randomUUID(),
+    transitionIn: 'cut' as const,
+    voiceLine: null,
+  }
   const assetId = asset?.id ?? null
   switch (type) {
     case 'packshot':
@@ -288,4 +334,38 @@ export function removeAssetReferences(
         : scene,
     ),
   }
+}
+
+export type VoiceLineStatus = 'none' | 'needs-generating' | 'ready'
+
+// Whether a scene's voice line has audio matching its text and the
+// project's voice. Empty lines count as none.
+export function voiceLineStatus(
+  doc: ProjectDoc,
+  scene: Scene,
+): VoiceLineStatus {
+  const line = scene.voiceLine
+  if (!line || line.text.trim() === '') return 'none'
+  const { clip } = line
+  return clip &&
+    clip.text === line.text.trim() &&
+    clip.voiceId === doc.narration.voiceId
+    ? 'ready'
+    : 'needs-generating'
+}
+
+// Scenes whose voice lines need generating.
+export function scenesNeedingVoice(doc: ProjectDoc) {
+  return doc.scenes.filter(
+    (s) => voiceLineStatus(doc, s) === 'needs-generating',
+  )
+}
+
+// Every generated voice clip the doc points at.
+export function voiceClipIdsInDoc(doc: ProjectDoc) {
+  const ids = new Set<string>()
+  for (const scene of doc.scenes) {
+    if (scene.voiceLine?.clip) ids.add(scene.voiceLine.clip.id)
+  }
+  return ids
 }

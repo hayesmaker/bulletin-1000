@@ -3,8 +3,8 @@ import type { MusicCue, Schedule } from '#/composition/schedule'
 
 // Builds the ffmpeg inputs and filter graph that mix an export's audio:
 // a silent bed the length of the video, the music (offset, delayed to its
-// start, with the same volume curve as the preview), each kept clip's audio
-// and the splash jingle. Pure, so it can be tested without running ffmpeg.
+// start, with the same volume curve as the preview), each kept clip's audio,
+// the splash jingle and the narration. Pure, so it can be tested without running ffmpeg.
 
 export const SAMPLE_RATE = 48000
 
@@ -44,7 +44,7 @@ const delay = (seconds: number) =>
   `adelay=delays=${Math.round(seconds * 1000)}:all=1`
 
 // `firstInput` is the ffmpeg input index the audio inputs start at (after
-// the video). `files` maps asset ids to their media files.
+// the video). `files` maps asset ids (and voice clip ids) to their files.
 export function buildAudioMix(
   schedule: Schedule,
   files: Map<string, string>,
@@ -105,6 +105,17 @@ export function buildAudioMix(
     labels.push('[jingle]')
     index++
   }
+
+  schedule.narration.forEach((cue, i) => {
+    const file = files.get(cue.clipId)
+    if (!file) return
+    inputArgs.push('-t', n(cue.end - cue.start), '-i', file)
+    chains.push(
+      `[${index}:a]${normalise},volume=${n(schedule.narrationVolume)},${delay(cue.start)}[voice${i}]`,
+    )
+    labels.push(`[voice${i}]`)
+    index++
+  })
 
   chains.push(
     `${labels.join('')}amix=inputs=${labels.length}:duration=first:normalize=0[audio]`,
