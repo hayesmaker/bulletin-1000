@@ -122,7 +122,7 @@ export type Music = z.infer<typeof musicSchema>
 export type Splash = z.infer<typeof splashSchema>
 export type ProjectDoc = z.infer<typeof projectDocSchema>
 
-export const DEFAULT_PACKSHOT_COLOUR = '#1f2fa3'
+export const DEFAULT_PACKSHOT_COLOUR = '#1b23aa'
 export const DEFAULT_CARD_DURATION = 4
 
 export function createProjectDoc(title = 'Untitled game'): ProjectDoc {

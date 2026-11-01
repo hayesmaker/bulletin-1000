@@ -87,13 +87,17 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 
 ### 3. Composition (GSAP template)
 
-- [ ] Theme config: fonts, colours, and brand assets in one place
-- [ ] Deterministic timeline builder (project JSON → GSAP timeline), with no real-time dependencies
-- [ ] Packshot card
-- [ ] Publisher logo card and title screen card
-- [ ] Gameplay scene: 4:3 inset, "TITLE – Publisher" caption, overlay captions
-- [ ] Cuts and short dissolves between scenes
-- [ ] Preview player with audio sync (music start point, clip audio)
+- [x] Theme config: fonts, colours, layout and timings in one place (`src/composition/theme.ts`). The font is Archivo, a free variable sans whose width axis covers both the condensed caption and the regular packshot text.
+- [x] Deterministic timeline builder (project JSON → schedule → GSAP timeline), with no real-time dependencies. All times are whole frames, and the same frame renders byte-identically across page loads.
+- [x] Packshot card (measured from the 1985 reference: box art left, price/platform pairs spread from the top of the box to its bottom; default colour sampled from the reference)
+- [x] Publisher logo card (falls back to the publisher name) and title screen card
+- [x] Gameplay scene: 4:3 inset, "TITLE – Publisher" caption, overlay captions; screenshot scene with the same layout
+- [x] Cuts and short dissolves between scenes (dissolves overlap the previous scene, capped at half of either scene)
+- [x] Preview player with audio sync (music start point and fade-out, "keep clip audio")
+- [x] Render page (`/render/:projectId`) exposing `window.composition.renderFrame(n)` for the exporter
+- [x] `npm run seed:demo` to create a demo project before the editor exists
+- [ ] Decide inset scaling for low-res gameplay: `insetScaling` in the theme is `'smooth'` (like the analogue originals); `'pixelated'` keeps pixel art crisp. Could become a per-project option.
+- [ ] Replace the splash placeholder card (step 6)
 
 ### 4. Editor UI
 
@@ -108,7 +112,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 ### 5. Export
 
 - [ ] SQLite-backed render job queue with a single worker
-- [ ] Playwright frame capture at 1440×1080, 25 fps
+- [ ] Playwright frame capture at 1440×1080, 25 fps. Use Google Chrome (`channel: 'chrome'` or its executable path) rather than Playwright's bundled Chromium, which ships without H.264/AAC decoders.
 - [ ] ffmpeg encode, mixing music, clip audio, and jingle
 - [ ] Render progress and status in the UI
 - [ ] Download link for the finished MP4

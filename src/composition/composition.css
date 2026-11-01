@@ -1,0 +1,3 @@
+/* Fonts used by the composition (see fonts in theme.ts). Archivo's width
+   axis gives both the condensed caption and the regular packshot text. */
+@import '@fontsource-variable/archivo/wdth.css';
