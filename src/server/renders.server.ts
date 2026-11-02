@@ -3,6 +3,7 @@ import path from 'node:path'
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { toCompositionAssets } from '#/composition/assets'
 import { buildSchedule } from '#/composition/schedule'
+import { hasEffects } from '#/composition/effects'
 import { formats, fps } from '#/composition/theme'
 import { projectDocSchema } from '#/lib/project'
 import type { ProjectDoc } from '#/lib/project'
@@ -112,10 +113,14 @@ export async function runRender(db: Db, id: string, baseUrl: string) {
       files.set(cue.clipId, path.join(dataDir(), clip.path))
     }
     const mix = buildAudioMix(schedule, files, 1)
+    // Lossless PNG frames, or JPEG for videos with effects (see
+    // capture.server.ts).
+    const format = hasEffects(render.doc.effects) ? 'jpeg' : 'png'
     await fsp.mkdir(path.dirname(partial), { recursive: true })
     ffmpeg = spawnFfmpeg([
-      // Video: PNG frames on stdin.
-      '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png',
+      // Video: frames on stdin.
+      '-f', 'image2pipe', '-framerate', String(fps),
+      '-c:v', format === 'jpeg' ? 'mjpeg' : 'png',
       '-i', 'pipe:0',
       ...mix.inputArgs,
       '-filter_complex', mix.filter,
@@ -132,6 +137,7 @@ export async function runRender(db: Db, id: string, baseUrl: string) {
       url: `${baseUrl}/render/${render.projectId}?render=${id}`,
       frameCount,
       size: formats[render.doc.aspectRatio],
+      format,
       out: ffmpeg.stdin,
       cancelled: gone,
       onFrame: (frame) => {
