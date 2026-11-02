@@ -1,29 +1,67 @@
 import { once } from 'node:events'
+import fs from 'node:fs'
 import os from 'node:os'
 import { chromium } from 'playwright-core'
 import type { Browser } from 'playwright-core'
 import type { Writable } from 'node:stream'
 
 // Drives the render page (/render/:projectId) in headless Google Chrome:
-// steps the composition frame by frame and writes each frame as a PNG.
+// steps the composition frame by frame and writes each frame as an image.
 // Chrome rather than Playwright's bundled Chromium, which can't decode
 // H.264/AAC. Set CHROME_PATH to use a specific executable.
 //
 // Several pages render in parallel, taking frames in turn (page k renders
 // frames k, k + n, k + 2n, …), and the frames are written out in order. The
 // composition is deterministic, so which page renders a frame doesn't
-// matter. Screenshots go through the DevTools protocol with
-// optimizeForSpeed, which is still lossless PNG but encodes much faster.
+// matter. Each page gets its own browser: Chrome draws all of a browser's
+// pages in one GPU process, which otherwise becomes the bottleneck.
+//
+// Chrome draws with the GPU when there is one (RENDER_GPU), which makes the
+// filter effects several times faster; otherwise it draws in software.
+// Frames are PNG (lossless), or high-quality JPEG when the video has
+// effects: grain makes PNG slow to encode and large, and JPEG's loss is
+// hidden under the grain and the final H.264 encode.
 
 const LOAD_TIMEOUT_MS = 60_000
-const MAX_PAGES = 4
+const MAX_PAGES = 8
+const JPEG_QUALITY = 95
 
-// Pages to render with: RENDER_PAGES, or half the CPU cores up to 4.
+// Pages to render with: RENDER_PAGES, or half the CPU cores up to 8.
 export function renderPageCount() {
   const set = Number(process.env.RENDER_PAGES)
   if (Number.isInteger(set) && set > 0) return set
   return Math.min(MAX_PAGES, Math.max(1, Math.floor(os.cpus().length / 2)))
 }
+
+// Whether to draw with the GPU: RENDER_GPU=1 or 0, or by default when the
+// machine has a GPU render device (Linux).
+export function useGpu(env = process.env.RENDER_GPU) {
+  if (env === '1') return true
+  if (env === '0') return false
+  try {
+    return fs.readdirSync('/dev/dri').some((d) => d.startsWith('renderD'))
+  } catch {
+    return false
+  }
+}
+
+const GPU_ARGS = [
+  '--enable-gpu',
+  '--ignore-gpu-blocklist',
+  '--use-gl=angle',
+  '--use-angle=gl-egl',
+]
+
+function launchBrowser(gpu: boolean) {
+  return chromium.launch({
+    ...(process.env.CHROME_PATH
+      ? { executablePath: process.env.CHROME_PATH }
+      : { channel: 'chrome' as const }),
+    args: gpu ? GPU_ARGS : [],
+  })
+}
+
+export type FrameFormat = 'png' | 'jpeg'
 
 interface Size {
   width: number
@@ -35,6 +73,7 @@ interface CaptureOptions {
   frameCount: number
   // The stage size in pixels.
   size: Size
+  format?: FrameFormat
   out: Writable
   // Called for each frame once it has been written, in order.
   onFrame: (frame: number) => void
@@ -48,6 +87,7 @@ async function openRenderPage(
   url: string,
   frameCount: number,
   size: Size,
+  format: FrameFormat,
 ) {
   const { width, height } = size
   const clip = { x: 0, y: 0, width, height, scale: 1 }
@@ -81,7 +121,9 @@ async function openRenderPage(
     async capture(frame: number) {
       await page.evaluate((n) => window.composition!.renderFrame(n), frame)
       const { data } = await cdp.send('Page.captureScreenshot', {
-        format: 'png',
+        ...(format === 'jpeg'
+          ? { format: 'jpeg', quality: JPEG_QUALITY }
+          : { format: 'png' }),
         clip,
         optimizeForSpeed: true,
       })
@@ -120,27 +162,52 @@ export function frameTurns() {
   }
 }
 
+// Opens `count` render pages, each in its own browser. If the GPU can't be
+// used, starts again drawing in software.
+async function openRenderers(
+  count: number,
+  open: (browser: Browser) => ReturnType<typeof openRenderPage>,
+) {
+  const attempt = async (gpu: boolean) => {
+    const browsers: Browser[] = []
+    try {
+      const renderers = await Promise.all(
+        Array.from({ length: count }, async () => {
+          const browser = await launchBrowser(gpu)
+          browsers.push(browser)
+          return open(browser)
+        }),
+      )
+      return { browsers, renderers }
+    } catch (error) {
+      await Promise.all(browsers.map((b) => b.close()))
+      throw error
+    }
+  }
+  if (!useGpu()) return attempt(false)
+  try {
+    return await attempt(true)
+  } catch (error) {
+    console.warn('Rendering with the GPU failed; using software.', error)
+    return attempt(false)
+  }
+}
+
 export async function captureFrames({
   url,
   frameCount,
   size,
+  format = 'png',
   out,
   onFrame,
   cancelled,
   pages = renderPageCount(),
 }: CaptureOptions) {
-  const browser = await chromium.launch(
-    process.env.CHROME_PATH
-      ? { executablePath: process.env.CHROME_PATH }
-      : { channel: 'chrome' },
+  const count = Math.max(1, Math.min(pages, frameCount))
+  const { browsers, renderers } = await openRenderers(count, (browser) =>
+    openRenderPage(browser, url, frameCount, size, format),
   )
   try {
-    const count = Math.max(1, Math.min(pages, frameCount))
-    const renderers = await Promise.all(
-      Array.from({ length: count }, () =>
-        openRenderPage(browser, url, frameCount, size),
-      ),
-    )
     const turns = frameTurns()
 
     await Promise.all(
@@ -149,9 +216,9 @@ export async function captureFrames({
           for (let frame = k; frame < frameCount; frame += count) {
             if (turns.stopped) return
             if (cancelled?.()) return turns.stop()
-            const png = await renderer.capture(frame)
+            const image = await renderer.capture(frame)
             if (!(await turns.wait(frame))) return
-            if (!out.write(png)) await once(out, 'drain')
+            if (!out.write(image)) await once(out, 'drain')
             onFrame(frame)
             turns.done()
           }
@@ -165,6 +232,6 @@ export async function captureFrames({
     const error = renderers.flatMap((r) => r.errors)[0]
     if (error) throw new Error(error)
   } finally {
-    await browser.close()
+    await Promise.all(browsers.map((b) => b.close()))
   }
 }

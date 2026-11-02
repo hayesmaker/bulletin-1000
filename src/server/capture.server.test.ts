@@ -1,5 +1,6 @@
+import fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { frameTurns } from './capture.server'
+import { frameTurns, useGpu } from './capture.server'
 
 describe('frameTurns', () => {
   it('lets frames through in order, whenever they arrive', async () => {
@@ -21,5 +22,24 @@ describe('frameTurns', () => {
     turns.stop()
     await expect(waiting).resolves.toBe(false)
     await expect(turns.wait(0)).resolves.toBe(false)
+  })
+})
+
+describe('useGpu', () => {
+  it('follows RENDER_GPU when set', () => {
+    expect(useGpu('1')).toBe(true)
+    expect(useGpu('0')).toBe(false)
+  })
+
+  it('otherwise looks for a GPU render device', () => {
+    let hasDevice = false
+    try {
+      hasDevice = fs
+        .readdirSync('/dev/dri')
+        .some((d) => d.startsWith('renderD'))
+    } catch {
+      // No /dev/dri: no GPU.
+    }
+    expect(useGpu(undefined)).toBe(hasDevice)
   })
 })

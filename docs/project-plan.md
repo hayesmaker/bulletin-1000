@@ -104,7 +104,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 ### 3. Composition (GSAP template)
 
 - [x] Theme config: fonts, colours, layout and timings in one place (`src/composition/theme.ts`). The font is Archivo, a free variable sans whose width axis covers both the condensed caption and the regular packshot text.
-- [x] Deterministic timeline builder (project JSON → schedule → GSAP timeline), with no real-time dependencies. All times are whole frames, and the same frame renders byte-identically across page loads.
+- [x] Deterministic timeline builder (project JSON → schedule → GSAP timeline), with no real-time dependencies. All times are whole frames, and the same frame renders byte-identically across page loads when drawn in software without effects. With effects or the GPU, pixels can differ by ±1 colour level between runs, which is invisible.
 - [x] Packshot card (measured from the 1985 reference: box art left, price/platform pairs spread from the top of the box to its bottom; default colour sampled from the reference)
 - [x] Publisher logo card (falls back to the publisher name) and title screen card
 - [x] Gameplay scene: 4:3 inset, "TITLE – Publisher" caption, overlay captions; screenshot scene with the same layout
@@ -178,7 +178,22 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
   - [x] `src/composition/effects.ts`; strengths at full amount and the presets in `theme.ts`
   - [x] Effects tab: presets (Clean, VHS tape, CRT screen, Worn tape on a CRT) and a slider per effect
   - [x] Deterministic: grain, wobble and noise come from the frame number; textures come from a seeded generator. Frames are byte-identical across export pages.
-  - [ ] Export with effects is slow: about 4× real time for the heaviest preset on the dev machine, against about 0.65× without effects. The SVG filters run on the CPU in headless Chrome. Options: enable GPU rasterisation for the export browser, or move the costly effects (colour bleed, curvature) to an ffmpeg pass and keep the CSS versions for preview.
+  - [x] Faster export (2026-11-02). Measured on the dev machine (32 cores, RTX 4070 Ti SUPER) with the 30.5s demo:
+
+    |                     | Before                | After         |
+    | ------------------- | --------------------- | ------------- |
+    | Worn tape on a CRT  | 123s (4.0× real time) | 11.6s (0.38×) |
+    | Clean               | 14.3s                 | 7.6s          |
+    | Worn, without a GPU | 123s                  | 43s           |
+
+    Changes:
+
+    - one browser per render page: all of a browser's pages shared one GPU process (including software drawing), so extra pages didn't help
+    - Chrome draws with the GPU (ANGLE on GL/EGL) when there's a render device; `RENDER_GPU` overrides this
+    - JPEG (quality 95) frames for videos with effects, since noisy PNGs were slow to encode. That's 42 dB PSNR against PNG after the H.264 encode, close to the 45 dB between two PNG runs, so invisible. Clean videos stay PNG.
+    - default render pages raised from 4 to 8; more than 8 didn't help
+    - x264 at `medium` encodes about 115 fps here, so it isn't the bottleneck
+
   - [ ] Check preview frame rate with effects on a typical machine; if it's choppy, show a simplified look while playing
   - [ ] More effects: dropout lines, tape crease, roll/hum bar, phosphor glow
 - [ ] Clerk auth and the My Videos page (list, re-edit, download)
