@@ -3,6 +3,7 @@ import { BUILT_IN_JINGLE_URL, voiceClipUrl } from '#/lib/assets'
 import type { ProjectDoc } from '#/lib/project'
 import { buildSchedule, musicGain } from './schedule'
 import type { Schedule } from './schedule'
+import { buildEffects } from './effects'
 import { buildLayer, drawBackdrop } from './scenes'
 import { splashFontFaces } from './splash'
 import type { CaptionCue, CompositionAsset, VideoCue } from './scenes'
@@ -96,6 +97,7 @@ export function createComposition(
     fontFamily: fonts.sans,
   })
   root.replaceChildren(stageEl)
+  const effects = buildEffects(stageEl, format, doc.effects)
 
   const tl = gsap.timeline({ paused: true })
   const captions: CaptionCue[] = []
@@ -104,7 +106,7 @@ export function createComposition(
 
   for (const item of schedule.items) {
     const built = buildLayer(item, doc, assets, format)
-    stageEl.append(built.layer)
+    effects.content.append(built.layer)
     captions.push(...built.captions)
     images.push(...built.images)
     if (built.video) videos.push(built.video)
@@ -182,6 +184,7 @@ export function createComposition(
     ...splashFontFaces,
   ]
   const ready = Promise.all([
+    effects.ready,
     ...fontFaces.map((f) => document.fonts.load(f).catch(() => [])),
     ...images.map((img) => img.decode().catch(() => undefined)),
     ...videos.map((v) =>
@@ -203,7 +206,9 @@ export function createComposition(
     Math.min(Math.max(t, 0), Math.max(schedule.duration - 1e-6, 0))
 
   const seek = (t: number) => {
-    tl.seek(clampTime(t), false)
+    const time = clampTime(t)
+    tl.seek(time, false)
+    effects.update(Math.floor(time * fps + 1e-6))
   }
 
   const syncMedia = (t: number, playing: boolean) => {
