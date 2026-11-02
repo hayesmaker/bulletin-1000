@@ -39,6 +39,17 @@ export const colours = {
 // analogue originals; 'pixelated' keeps low-res pixel art crisp.
 export const insetScaling: 'smooth' | 'pixelated' = 'pixelated'
 
+// The 'blur' backdrop: a soft, darkened copy of the game screen filling the
+// stage behind it. The copy is drawn small (`width` pixels across) and
+// blurred; `scale` hides the blur's faded edges.
+export const backdrop = {
+  width: 160,
+  blur: 28,
+  brightness: 0.45,
+  saturate: 1.2,
+  scale: 1.15,
+}
+
 interface Rect {
   x: number
   y: number
@@ -59,8 +70,10 @@ export interface Layout {
     letterSpacing: string
     lines: 'one' | 'stacked'
   }
-  // Selling-point captions over the gameplay, centred in the inset.
+  // Selling-point captions, centred in `area` (by default, over the game
+  // screen).
   overlayCaption: {
+    area?: Rect
     fontSize: number
     fontWeight: number
     fontStretch: string
@@ -136,7 +149,12 @@ const layout9x16: Layout = {
   ...layout4x3,
   inset: { x: 36, y: 480, width: 1008, height: 756 },
   caption: { ...layout4x3.caption, y: 1350, lines: 'stacked' },
-  overlayCaption: { ...layout4x3.overlayCaption, maxWidth: 860 },
+  // Captions go in the space above the game screen.
+  overlayCaption: {
+    ...layout4x3.overlayCaption,
+    area: { x: 60, y: 110, width: 960, height: 340 },
+    maxWidth: 900,
+  },
   packshot: {
     ...layout4x3.packshot,
     boxArt: { x: 190, y: 170, width: 700, height: 1040 },

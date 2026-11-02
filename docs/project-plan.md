@@ -57,6 +57,7 @@ Updated 2026-11-02.
   - **9:16** puts the game screen across the middle (1008×756), the caption under it on two lines (title, then publisher), and the packshot's box art above the prices, which go into two columns beyond three pairs.
   - The splashes keep their 1440×1080 artwork, centred (scaled to 75% across the width for 9:16), with their backgrounds filling the stage.
   - 4:3 output is unchanged: frames are byte-identical to before.
+  - **Backdrop (2026-11-02):** what fills the stage around the game screen is a project setting, black by default. 'blur' draws the clip's current frame small onto a canvas, CSS-blurred and darkened, in both preview and export (export output stays deterministic).
 - **Look: clean output for the MVP.** CRT/VHS filters come in the effects milestone.
 - **Uploads:** gameplay clips are limited (around 100MB or 2 min). Users set in/out points in the editor, and the server transcodes clips to a standard format (H.264/AAC MP4, constant frame rate) with ffmpeg on upload.
 
@@ -165,8 +166,8 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
   - [x] `aspectRatio` in the project doc (older docs and render docs default to 4:3); Format picker in the Details tab
   - [x] per-format stage size and layout in `theme.ts`; scenes and splashes built from the format
   - [x] preview player fits tall formats to the window height; export captures at the format's size; the Export drawer shows each render's format
-  - [ ] Optionally fill 16:9 with a bigger game screen (cropped, or a blurred copy behind it) instead of black sides
-  - [ ] Per-format positions for overlay captions (e.g. above or below the game screen in 9:16)
+  - [x] "Around the game screen" setting (Details tab): black, like the originals, or a blurred copy of the game filling the frame (`backdrop` in the doc; look tuned in `theme.ts`). Works in every format. Cropping the game to fill was dropped, since it would cut off HUDs.
+  - [x] Per-format overlay caption area (`overlayCaption.area` in the layout): over the game screen in 4:3 and 16:9, in the space above it in 9:16
 - [ ] Filter effects (CRT, VHS grain, scanlines, colour bleed), most likely as WebGL shaders so preview and export match
 - [ ] Clerk auth and the My Videos page (list, re-edit, download)
 - [ ] Selectable and editable transitions/animations

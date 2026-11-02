@@ -156,12 +156,17 @@ export const splashSchema = z.enum(['none', '1985', '1989'])
 // The video's shape: the originals' 4:3, widescreen or vertical.
 export const aspectRatioSchema = z.enum(['4:3', '16:9', '9:16'])
 
+// What fills the stage around the game screen: black, like the originals,
+// or a blurred copy of the game.
+export const backdropSchema = z.enum(['black', 'blur'])
+
 // Seconds a splash can be held for beyond its own length.
 export const MAX_SPLASH_HOLD = 3
 
 export const projectDocSchema = z.object({
   version: z.literal(PROJECT_DOC_VERSION),
   aspectRatio: aspectRatioSchema.default('4:3'),
+  backdrop: backdropSchema.default('black'),
   title: z.string().max(100),
   publisher: z.string().max(100),
   prices: z.array(pricePlatformSchema).max(8),
@@ -194,6 +199,7 @@ export type Transition = z.infer<typeof transitionSchema>
 export type Music = z.infer<typeof musicSchema>
 export type Splash = z.infer<typeof splashSchema>
 export type AspectRatio = z.infer<typeof aspectRatioSchema>
+export type Backdrop = z.infer<typeof backdropSchema>
 export type VoiceLine = z.infer<typeof voiceLineSchema>
 export type Narration = z.infer<typeof narrationSchema>
 export type ProjectDoc = z.infer<typeof projectDocSchema>
@@ -205,6 +211,7 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
   return {
     version: PROJECT_DOC_VERSION,
     aspectRatio: '4:3',
+    backdrop: 'black',
     title,
     publisher: '',
     prices: [],
