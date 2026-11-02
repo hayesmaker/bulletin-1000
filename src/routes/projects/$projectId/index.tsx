@@ -364,6 +364,7 @@ function Editor() {
       >
         <ExportPanel
           projectId={project.id}
+          aspectRatio={doc.aspectRatio}
           saved={status === 'saved'}
           voiceLinesToGenerate={scenesNeedingVoice(doc).length}
           generatingVoice={narration.generating.size > 0}

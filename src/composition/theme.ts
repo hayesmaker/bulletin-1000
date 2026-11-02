@@ -1,15 +1,14 @@
+import type { AspectRatio } from '#/lib/project'
+
 // The Bulletin 1000 template theme: every font, colour, brand string, layout
 // measurement and timing the composition uses. Change the look here.
 //
-// Layout is in stage pixels (1440×1080). Measurements come from the 1985
-// reference promos (see docs/style-guide.md). Font files are loaded in
-// composition.css; keep `fonts` in sync with it.
+// Layout is in stage pixels. The 4:3 layout (1440×1080) is measured from the
+// 1985 reference promos (see docs/style-guide.md); the 16:9 and 9:16 layouts
+// are built from it. Font files are loaded in composition.css; keep `fonts`
+// in sync with it.
 
-export const stage = {
-  width: 1440,
-  height: 1080,
-  fps: 25,
-}
+export const fps = 25
 
 export const brand = {
   name: 'Bulletin 1000',
@@ -40,18 +39,58 @@ export const colours = {
 // analogue originals; 'pixelated' keeps low-res pixel art crisp.
 export const insetScaling: 'smooth' | 'pixelated' = 'pixelated'
 
-export const layout = {
+interface Rect {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export interface Layout {
   // The 4:3 game screen inset, used by gameplay, screenshot and title scenes.
-  inset: { x: 180, y: 112, width: 1080, height: 810 },
+  inset: Rect
   // "TITLE – Publisher" under the inset; y is the text's vertical centre.
+  // 'stacked' puts the publisher on a line of its own.
+  caption: {
+    y: number
+    fontSize: number
+    fontWeight: number
+    fontStretch: string
+    letterSpacing: string
+    lines: 'one' | 'stacked'
+  }
+  // Selling-point captions over the gameplay, centred in the inset.
+  overlayCaption: {
+    fontSize: number
+    fontWeight: number
+    fontStretch: string
+    maxWidth: number
+  }
+  packshot: {
+    boxArt: Rect
+    // Price/platform pairs; the first pair aligns with the top of the area
+    // and the last with its bottom. Beyond `maxRows` pairs they go into
+    // more columns.
+    prices: Rect & { align: 'left' | 'center'; maxRows: number }
+    priceFontSize: number
+    priceFontWeight: number
+    platformFontSize: number
+    platformFontWeight: number
+    titleFontSize: number
+  }
+  publisherLogo: { maxWidth: number; maxHeight: number; fontSize: number }
+}
+
+const layout4x3: Layout = {
+  inset: { x: 180, y: 112, width: 1080, height: 810 },
   caption: {
     y: 1000,
     fontSize: 60,
     fontWeight: 600,
     fontStretch: '80%',
     letterSpacing: '0.01em',
+    lines: 'one',
   },
-  // Selling-point captions over the gameplay, centred in the inset.
   overlayCaption: {
     fontSize: 64,
     fontWeight: 700,
@@ -60,9 +99,14 @@ export const layout = {
   },
   packshot: {
     boxArt: { x: 135, y: 170, width: 450, height: 795 },
-    // Price/platform column; the first pair aligns with the top of the box
-    // art and the last with its bottom.
-    prices: { x: 652, y: 170, width: 650, height: 795 },
+    prices: {
+      x: 652,
+      y: 170,
+      width: 650,
+      height: 795,
+      align: 'left',
+      maxRows: Infinity,
+    },
     priceFontSize: 84,
     priceFontWeight: 800,
     platformFontSize: 62,
@@ -70,6 +114,77 @@ export const layout = {
     titleFontSize: 84,
   },
   publisherLogo: { maxWidth: 1000, maxHeight: 700, fontSize: 120 },
+}
+
+// Widescreen: the 4:3 layout, centred, with wider black sides.
+const pillarbox = (dx: number): Layout => {
+  const { inset, packshot: p } = layout4x3
+  return {
+    ...layout4x3,
+    inset: { ...inset, x: inset.x + dx },
+    packshot: {
+      ...p,
+      boxArt: { ...p.boxArt, x: p.boxArt.x + dx },
+      prices: { ...p.prices, x: p.prices.x + dx },
+    },
+  }
+}
+
+// Vertical: the game screen across the middle, the caption under it in two
+// lines; the packshot has the box art above the prices.
+const layout9x16: Layout = {
+  ...layout4x3,
+  inset: { x: 36, y: 480, width: 1008, height: 756 },
+  caption: { ...layout4x3.caption, y: 1350, lines: 'stacked' },
+  overlayCaption: { ...layout4x3.overlayCaption, maxWidth: 860 },
+  packshot: {
+    ...layout4x3.packshot,
+    boxArt: { x: 190, y: 170, width: 700, height: 1040 },
+    prices: {
+      x: 90,
+      y: 1290,
+      width: 900,
+      height: 460,
+      align: 'center',
+      maxRows: 3,
+    },
+    priceFontSize: 76,
+    platformFontSize: 56,
+  },
+  publisherLogo: { maxWidth: 900, maxHeight: 900, fontSize: 110 },
+}
+
+export interface Format {
+  label: string
+  width: number
+  height: number
+  layout: Layout
+  // Where the splash's 1440×1080 artwork sits on the stage, and its scale.
+  splash: { x: number; y: number; scale: number }
+}
+
+export const formats: Record<AspectRatio, Format> = {
+  '4:3': {
+    label: '4:3',
+    width: 1440,
+    height: 1080,
+    layout: layout4x3,
+    splash: { x: 0, y: 0, scale: 1 },
+  },
+  '16:9': {
+    label: '16:9',
+    width: 1920,
+    height: 1080,
+    layout: pillarbox(240),
+    splash: { x: 240, y: 0, scale: 1 },
+  },
+  '9:16': {
+    label: '9:16 vertical',
+    width: 1080,
+    height: 1920,
+    layout: layout9x16,
+    splash: { x: 0, y: 555, scale: 0.75 },
+  },
 }
 
 export const timing = {
@@ -84,8 +199,11 @@ export const timing = {
 }
 
 // The splash intros, recreated from the reference footage (see
-// docs/style-guide.md). Positions are in stage pixels at rest; times are
-// seconds from the splash start.
+// docs/style-guide.md). Positions are in pixels of a 1440×1080 frame at
+// rest, placed on the stage by each format's `splash`; times are seconds from
+// the splash start.
+export const splashFrame = { width: 1440, height: 1080 }
+
 export const splash = {
   '1985': {
     background: '#040606',

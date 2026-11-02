@@ -3,15 +3,17 @@ import { Button, Slider } from 'antd'
 import { CaretRightFilled, PauseOutlined } from '@ant-design/icons'
 import { createComposition } from '#/composition/composition'
 import type { Composition, CompositionAsset } from '#/composition/composition'
-import { stage } from '#/composition/theme'
+import { formats, fps } from '#/composition/theme'
 import type { ProjectDoc } from '#/lib/project'
 
 function formatTime(t: number) {
   const minutes = Math.floor(t / 60)
   const seconds = Math.floor(t % 60)
-  const frames = Math.floor((t * stage.fps) % stage.fps)
+  const frames = Math.floor((t * fps) % fps)
   return `${minutes}:${String(seconds).padStart(2, '0')}:${String(frames).padStart(2, '0')}`
 }
+
+const MAX_HEIGHT = '75vh'
 
 // Asks the player to jump to the start of a scene. A new request object
 // jumps again, even to the same scene.
@@ -31,7 +33,7 @@ export function CompositionPlayer({ doc, assets, seekTo }: Props) {
   const frameRef = useRef<HTMLDivElement>(null)
   const hostRef = useRef<HTMLDivElement>(null)
   const [composition, setComposition] = useState<Composition | null>(null)
-  const [scale, setScale] = useState(0)
+  const [frameWidth, setFrameWidth] = useState(0)
   const [time, setTime] = useState(0)
   const [playing, setPlaying] = useState(false)
   const handledSeek = useRef<SceneSeek>(undefined)
@@ -49,7 +51,7 @@ export function CompositionPlayer({ doc, assets, seekTo }: Props) {
     const frame = frameRef.current
     if (!frame) return
     const observer = new ResizeObserver(([entry]) =>
-      setScale(entry.contentRect.width / stage.width),
+      setFrameWidth(entry.contentRect.width),
     )
     observer.observe(frame)
     return () => observer.disconnect()
@@ -101,19 +103,25 @@ export function CompositionPlayer({ doc, assets, seekTo }: Props) {
   }, [composition, playing])
 
   const duration = composition?.duration ?? 0
+  const format = formats[doc.aspectRatio]
+  const scale = frameWidth / format.width
 
   return (
     <div className="flex flex-col gap-3">
       <div
         ref={frameRef}
-        className="relative w-full overflow-hidden bg-black"
-        style={{ aspectRatio: `${stage.width} / ${stage.height}` }}
+        className="relative mx-auto overflow-hidden bg-black"
+        style={{
+          aspectRatio: `${format.width} / ${format.height}`,
+          // Tall formats fit the window's height rather than its width.
+          width: `min(100%, calc(${MAX_HEIGHT} * ${format.width / format.height}))`,
+        }}
       >
         <div
           ref={hostRef}
           style={{
-            width: stage.width,
-            height: stage.height,
+            width: format.width,
+            height: format.height,
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
           }}
@@ -131,7 +139,7 @@ export function CompositionPlayer({ doc, assets, seekTo }: Props) {
           className="flex-1"
           min={0}
           max={duration}
-          step={1 / stage.fps}
+          step={1 / fps}
           value={time}
           tooltip={{ formatter: (v) => formatTime(v ?? 0) }}
           onChange={(v) => {

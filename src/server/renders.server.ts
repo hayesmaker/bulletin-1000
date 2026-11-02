@@ -3,7 +3,8 @@ import path from 'node:path'
 import { and, desc, eq, inArray } from 'drizzle-orm'
 import { toCompositionAssets } from '#/composition/assets'
 import { buildSchedule } from '#/composition/schedule'
-import { stage } from '#/composition/theme'
+import { formats, fps } from '#/composition/theme'
+import { projectDocSchema } from '#/lib/project'
 import type { ProjectDoc } from '#/lib/project'
 import { listAssets } from '#/server/assets.server'
 import { captureFrames } from '#/server/capture.server'
@@ -26,7 +27,7 @@ const renderPath = (projectId: string, id: string) =>
   path.posix.join(projectId, 'renders', `${id}.mp4`)
 
 // How often to write progress to the database, in frames.
-const PROGRESS_EVERY = stage.fps
+const PROGRESS_EVERY = fps
 
 export function insertRender(db: Db, projectId: string, doc: ProjectDoc) {
   return db
@@ -36,8 +37,16 @@ export function insertRender(db: Db, projectId: string, doc: ProjectDoc) {
     .get()
 }
 
+// Stored docs are re-parsed so fields added since they were saved get their
+// defaults (as in projects.server.ts).
+function withParsedDoc(row: RenderRow): RenderRow {
+  const parsed = projectDocSchema.safeParse(row.doc)
+  return parsed.success ? { ...row, doc: parsed.data } : row
+}
+
 export function findRender(db: Db, id: string): RenderRow | undefined {
-  return db.select().from(renders).where(eq(renders.id, id)).get()
+  const row = db.select().from(renders).where(eq(renders.id, id)).get()
+  return row && withParsedDoc(row)
 }
 
 export function listRenders(db: Db, projectId: string) {
@@ -47,6 +56,7 @@ export function listRenders(db: Db, projectId: string) {
     .where(eq(renders.projectId, projectId))
     .orderBy(desc(renders.createdAt))
     .all()
+    .map(withParsedDoc)
 }
 
 // Deletes the render and its file. A render in progress is stopped first.
@@ -84,7 +94,7 @@ export async function runRender(db: Db, id: string, baseUrl: string) {
     const assetRows = listAssets(db, render.projectId)
     const assets = toCompositionAssets(assetRows)
     const schedule = buildSchedule(render.doc, assets)
-    const frameCount = Math.round(schedule.duration * stage.fps)
+    const frameCount = Math.round(schedule.duration * fps)
     if (frameCount === 0) throw new Error('The video is empty: add a scene')
 
     const files = new Map(
@@ -105,7 +115,7 @@ export async function runRender(db: Db, id: string, baseUrl: string) {
     await fsp.mkdir(path.dirname(partial), { recursive: true })
     ffmpeg = spawnFfmpeg([
       // Video: PNG frames on stdin.
-      '-f', 'image2pipe', '-framerate', String(stage.fps), '-c:v', 'png',
+      '-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'png',
       '-i', 'pipe:0',
       ...mix.inputArgs,
       '-filter_complex', mix.filter,
@@ -121,6 +131,7 @@ export async function runRender(db: Db, id: string, baseUrl: string) {
     await captureFrames({
       url: `${baseUrl}/render/${render.projectId}?render=${id}`,
       frameCount,
+      size: formats[render.doc.aspectRatio],
       out: ffmpeg.stdin,
       cancelled: gone,
       onFrame: (frame) => {

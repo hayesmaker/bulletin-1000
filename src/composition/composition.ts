@@ -6,12 +6,14 @@ import type { Schedule } from './schedule'
 import { buildLayer } from './scenes'
 import { splashFontFaces } from './splash'
 import type { CaptionCue, CompositionAsset, VideoCue } from './scenes'
-import { colours, fonts, layout, stage } from './theme'
+import { colours, fonts, formats, fps } from './theme'
+import type { Format } from './theme'
 
-// Builds the Bulletin 1000 video for a project: a fixed 1440×1080 stage of
-// DOM layers driven by a paused GSAP timeline. The timeline is the only
-// clock: callers move it with seek() (preview) or renderFrame() (export),
-// so the same time always produces the same picture.
+// Builds the Bulletin 1000 video for a project: a stage of DOM layers sized
+// for the project's format (1440×1080 for 4:3), driven by a paused GSAP
+// timeline. The timeline is the only clock: callers move it with seek()
+// (preview) or renderFrame() (export), so the same time always produces the
+// same picture.
 
 export type { CompositionAsset } from './scenes'
 
@@ -19,6 +21,7 @@ export interface Composition {
   schedule: Schedule
   duration: number
   frameCount: number
+  format: Format
   stage: HTMLElement
   // Resolves when fonts, images and video metadata have loaded.
   ready: Promise<void>
@@ -32,7 +35,7 @@ export interface Composition {
 
 // Drift allowed before a playing element is re-seeked, in seconds.
 const PLAYING_DRIFT = 0.25
-const PAUSED_DRIFT = 0.5 / stage.fps
+const PAUSED_DRIFT = 0.5 / fps
 const SEEK_TIMEOUT_MS = 15_000
 
 function whenLoaded(target: HTMLElement, ok: string) {
@@ -80,12 +83,14 @@ export function createComposition(
 ): Composition {
   const assets = new Map(assetList.map((a) => [a.id, a]))
   const schedule = buildSchedule(doc, assetList)
+  const format = formats[doc.aspectRatio]
+  const { layout } = format
 
   const stageEl = document.createElement('div')
   Object.assign(stageEl.style, {
     position: 'relative',
-    width: `${stage.width}px`,
-    height: `${stage.height}px`,
+    width: `${format.width}px`,
+    height: `${format.height}px`,
     overflow: 'hidden',
     background: colours.background,
     fontFamily: fonts.sans,
@@ -98,7 +103,7 @@ export function createComposition(
   const images: HTMLImageElement[] = []
 
   for (const item of schedule.items) {
-    const built = buildLayer(item, doc, assets)
+    const built = buildLayer(item, doc, assets, format)
     stageEl.append(built.layer)
     captions.push(...built.captions)
     images.push(...built.images)
@@ -239,7 +244,7 @@ export function createComposition(
   }
 
   const renderFrame = async (frame: number) => {
-    const t = frame / stage.fps
+    const t = frame / fps
     seek(t)
     await Promise.all(
       videos
@@ -269,7 +274,8 @@ export function createComposition(
   return {
     schedule,
     duration: schedule.duration,
-    frameCount: Math.round(schedule.duration * stage.fps),
+    frameCount: Math.round(schedule.duration * fps),
+    format,
     stage: stageEl,
     ready,
     seek,

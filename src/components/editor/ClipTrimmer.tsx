@@ -3,7 +3,7 @@ import { Button, Slider } from 'antd'
 import { CaretRightFilled, PauseOutlined } from '@ant-design/icons'
 import { mediaUrl } from '#/lib/assets'
 import { snap, snapDown } from '#/composition/schedule'
-import { stage } from '#/composition/theme'
+import { fps } from '#/composition/theme'
 import type { AssetRow } from '#/server/db/schema'
 import { formatSeconds, formatTime } from './labels'
 
@@ -14,7 +14,7 @@ interface Props {
   onChange: (trim: { trimIn: number; trimOut: number }) => void
 }
 
-const FRAME = 1 / stage.fps
+const FRAME = 1 / fps
 
 // Sets a gameplay scene's in and out points on its source clip. This is an
 // editing aid, not the composition, so it plays in real time.

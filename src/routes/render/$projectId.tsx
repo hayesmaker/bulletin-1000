@@ -17,7 +17,7 @@ declare global {
   }
 }
 
-// Bare, full-size (1440×1080) stage for the headless exporter.
+// Bare, full-size stage (1440×1080 for 4:3) for the headless exporter.
 // With ?render=<id>, shows the doc saved with that render rather than the
 // project's current doc.
 export const Route = createFileRoute('/render/$projectId')({

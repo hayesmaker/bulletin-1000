@@ -1,6 +1,6 @@
 import { voiceLineStatus } from '#/lib/project'
 import type { ProjectDoc, Scene } from '#/lib/project'
-import { stage, timing } from './theme'
+import { fps, timing } from './theme'
 
 // Turns a project doc into absolute times: when each scene starts and ends,
 // how long each dissolve lasts, and when the music and clip audio play.
@@ -88,11 +88,11 @@ export interface Schedule {
   narrationVolume: number
 }
 
-export const toFrames = (seconds: number) => Math.round(seconds * stage.fps)
-export const snap = (seconds: number) => toFrames(seconds) / stage.fps
+export const toFrames = (seconds: number) => Math.round(seconds * fps)
+export const snap = (seconds: number) => toFrames(seconds) / fps
 // The last whole frame at or before a time, e.g. a clip's usable length.
 export const snapDown = (seconds: number) =>
-  Math.floor(seconds * stage.fps + 1e-6) / stage.fps
+  Math.floor(seconds * fps + 1e-6) / fps
 
 // Card scenes stretch to hold their voice line, plus this much.
 export const VOICE_LINE_TAIL = 0.5
@@ -122,7 +122,7 @@ function sceneDuration(
   const trimOut = clip?.duration
     ? Math.min(scene.trimOut, clip.duration)
     : scene.trimOut
-  return Math.max(trimOut - scene.trimIn, 1 / stage.fps)
+  return Math.max(trimOut - scene.trimIn, 1 / fps)
 }
 
 // A splash's length: its own, plus the time it's held for.
@@ -166,7 +166,7 @@ export function buildSchedule(
       const previousLength = previous.end - previous.start
       // Rounded down to whole frames so it never exceeds its cap.
       const cap = Math.min(timing.dissolve, previousLength / 2, length / 2)
-      dissolve = Math.floor(cap * stage.fps + 1e-9) / stage.fps
+      dissolve = Math.floor(cap * fps + 1e-9) / fps
     }
     const start = snap(cursor - dissolve)
     const end = snap(start + length)

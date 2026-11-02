@@ -26,7 +26,7 @@ Generated videos should be downloadable and editable later.
 
 ## Decisions
 
-Updated 2026-11-01.
+Updated 2026-11-02.
 
 - **Rendering: hybrid.** Live preview in the browser (a GSAP timeline driving a canvas/DOM composition). Final export on the server via **headless Chromium replay**: Playwright loads the same composition, steps the GSAP timeline frame by frame, and pipes the frames to ffmpeg, which muxes in the audio. One composition codebase serves both preview and export.
 - **Database: SQLite via Drizzle ORM + better-sqlite3** (decided 2026-11-01). A project is stored as one validated JSON document (`src/lib/project.ts`), with assets in their own table. Migrations live in `drizzle/` and are applied on startup.
@@ -48,11 +48,15 @@ Updated 2026-11-01.
   - The source can be an uploaded audio file or the audio taken from one of the gameplay clips.
   - Gameplay clip audio is muted by default, with an optional per-scene "keep clip audio" switch mixed over the music. The music ducks under kept clip audio (see step 5).
   - The 1989 splash plays its jingle; the 1985 splash is silent, as in the original footage. Either can use an uploaded sound instead, or none.
-- **Output: 1440×1080 at 25 fps** (4:3, PAL-era frame rate). H.264/AAC MP4.
+- **Output: 25 fps** (PAL-era frame rate), H.264/AAC MP4: 1440×1080 for 4:3, 1920×1080 for 16:9, 1080×1920 for 9:16.
 - **Fonts:** a free Helvetica-style sans for captions and packshot text, plus custom-designed chunky logo type for the 1985 splash. Font choices are defined once in the template theme config so they're easy to change.
 - **Splash intros are recreated in code**, not taken from the original footage, and follow the originals' timing and motion closely (decided 2026-11-01). The 1985 neon panel is SVG with a CSS 3D flip on the GSAP timeline. The 1989 ident is static in the original, so it's SVG too; three.js isn't needed (changed 2026-11-01). The 1989 jingle is an original synth ident in the same style, synthesised in code. Splash is an optional, selectable intro, and users can upload their own logo (replacing the lettering) and sound.
 - **Brand/rights:** UK IPO, TMview, and WIPO Global Brand Database searches on 2026-11-01 found no "Bulletin 1000" trade marks, and Companies House has no matching company. The splash logo artwork will be a **modified reinterpretation** of the originals, not a copy. Brand text and logo assets live in one place in the code so they can be swapped if needed.
-- **Aspect ratio: 4:3 only for the MVP.** 16:9 and 9:16 layouts come later.
+- **Aspect ratio:** 4:3 only for the MVP. **Changed 2026-11-02:** a project picks 4:3 (default, and for older projects), 16:9 or 9:16 (`aspectRatio` in the doc, Format in the Details tab). Each format has its own stage size and layout in `theme.ts` (`formats`):
+  - **16:9** keeps the 4:3 layout at the same size, centred, with wider black sides, so the game screen stays an original-style 4:3 inset.
+  - **9:16** puts the game screen across the middle (1008×756), the caption under it on two lines (title, then publisher), and the packshot's box art above the prices, which go into two columns beyond three pairs.
+  - The splashes keep their 1440×1080 artwork, centred (scaled to 75% across the width for 9:16), with their backgrounds filling the stage.
+  - 4:3 output is unchanged: frames are byte-identical to before.
 - **Look: clean output for the MVP.** CRT/VHS filters come in the effects milestone.
 - **Uploads:** gameplay clips are limited (around 100MB or 2 min). Users set in/out points in the editor, and the server transcodes clips to a standard format (H.264/AAC MP4, constant frame rate) with ffmpeg on upload.
 
@@ -157,7 +161,12 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
   - [ ] Per-line voice settings (speed, stability) or a per-line voice
   - [ ] Show the account's remaining ElevenLabs quota (needs the `user_read` permission)
   - [ ] Delete cached voice clips nothing uses (part of the retention question)
-- [ ] 16:9 and 9:16 layouts
+- [x] 16:9 and 9:16 layouts
+  - [x] `aspectRatio` in the project doc (older docs and render docs default to 4:3); Format picker in the Details tab
+  - [x] per-format stage size and layout in `theme.ts`; scenes and splashes built from the format
+  - [x] preview player fits tall formats to the window height; export captures at the format's size; the Export drawer shows each render's format
+  - [ ] Optionally fill 16:9 with a bigger game screen (cropped, or a blurred copy behind it) instead of black sides
+  - [ ] Per-format positions for overlay captions (e.g. above or below the game screen in 9:16)
 - [ ] Filter effects (CRT, VHS grain, scanlines, colour bleed), most likely as WebGL shaders so preview and export match
 - [ ] Clerk auth and the My Videos page (list, re-edit, download)
 - [ ] Selectable and editable transitions/animations

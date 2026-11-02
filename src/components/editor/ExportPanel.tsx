@@ -5,7 +5,9 @@ import {
   DownloadOutlined,
   PlayCircleOutlined,
 } from '@ant-design/icons'
+import { formats } from '#/composition/theme'
 import { renderFileUrl } from '#/lib/assets'
+import type { AspectRatio } from '#/lib/project'
 import type { RenderRow } from '#/server/db/schema'
 import {
   deleteRender,
@@ -16,6 +18,7 @@ import { formatSeconds } from './labels'
 
 interface Props {
   projectId: string
+  aspectRatio: AspectRatio
   // False while the doc has unsaved changes: renders use the saved doc.
   saved: boolean
   // Voice lines that must be generated before an export.
@@ -41,6 +44,7 @@ const megabytes = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
 // Renders the project to MP4 and lists its exports.
 export function ExportPanel({
   projectId,
+  aspectRatio,
   saved,
   voiceLinesToGenerate,
   generatingVoice,
@@ -109,7 +113,7 @@ export function ExportPanel({
         </Button>
         <p className="mt-2 mb-0 text-xs text-neutral-500">
           {saved
-            ? 'Renders the project as it is now: 1440×1080, 25fps MP4.'
+            ? `Renders the project as it is now: ${formats[aspectRatio].width}×${formats[aspectRatio].height}, 25fps MP4.`
             : 'Waiting for your changes to save.'}
         </p>
       </div>
@@ -123,6 +127,7 @@ export function ExportPanel({
           <div key={r.id} className="rounded border border-neutral-200 p-3">
             <div className="flex items-center gap-2">
               <Tag color={tag.color}>{tag.label}</Tag>
+              <Tag>{formats[r.doc.aspectRatio].label}</Tag>
               <span className="flex-1 text-xs text-neutral-500">
                 {r.createdAt.toLocaleString()}
               </span>

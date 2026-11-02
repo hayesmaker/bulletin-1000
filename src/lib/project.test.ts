@@ -247,3 +247,14 @@ describe('voice lines', () => {
     ).toBe(false)
   })
 })
+
+describe('aspect ratio', () => {
+  it('makes older docs 4:3 and rejects unknown ratios', () => {
+    const { aspectRatio: _, ...old } = createProjectDoc()
+    expect(projectDocSchema.parse(old).aspectRatio).toBe('4:3')
+    expect(
+      projectDocSchema.safeParse({ ...createProjectDoc(), aspectRatio: '1:1' })
+        .success,
+    ).toBe(false)
+  })
+})

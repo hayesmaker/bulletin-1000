@@ -2,7 +2,8 @@ import type { ProjectDoc, Scene } from '#/lib/project'
 import type { AssetInfo, ScheduledItem } from './schedule'
 import { buildSplash } from './splash'
 import type { SplashLayer } from './splash'
-import { colours, insetScaling, layout, stage } from './theme'
+import { colours, insetScaling } from './theme'
+import type { Format, Layout } from './theme'
 
 // DOM builders for each scene type. Each returns an absolutely positioned
 // layer covering the stage; the composition shows and hides layers and
@@ -101,10 +102,15 @@ const scaling: Style = {
   imageRendering: insetScaling === 'pixelated' ? 'pixelated' : 'auto',
 }
 
-function gameCaption(doc: ProjectDoc) {
+function gameCaption(doc: ProjectDoc, layout: Layout) {
   const { caption } = layout
   const title = doc.title.toUpperCase()
-  const text = doc.publisher ? `${title} – ${doc.publisher}` : title
+  const stacked = caption.lines === 'stacked'
+  const text = !doc.publisher
+    ? title
+    : stacked
+      ? `${title}\n${doc.publisher}`
+      : `${title} – ${doc.publisher}`
   return el(
     'div',
     {
@@ -119,7 +125,9 @@ function gameCaption(doc: ProjectDoc) {
       fontWeight: String(caption.fontWeight),
       fontStretch: caption.fontStretch,
       letterSpacing: caption.letterSpacing,
-      whiteSpace: 'nowrap',
+      ...(stacked
+        ? { whiteSpace: 'pre-line', lineHeight: '1.1', padding: '0 40px' }
+        : { whiteSpace: 'nowrap' }),
       textShadow,
     },
     text,
@@ -129,6 +137,7 @@ function gameCaption(doc: ProjectDoc) {
 function overlayCaptions(
   item: ScheduledItem,
   captions: Array<{ text: string; start: number; end: number }>,
+  layout: Layout,
 ) {
   const { inset, overlayCaption: o } = layout
   return captions.map((c) => {
@@ -171,7 +180,9 @@ export function buildLayer(
   item: ScheduledItem,
   doc: ProjectDoc,
   assets: Map<string, CompositionAsset>,
+  format: Format,
 ): BuiltLayer {
+  const { layout } = format
   const layer = el('div', { ...fill, background: colours.background })
   layer.dataset.item = item.id
   const built: BuiltLayer = { layer, captions: [], images: [] }
@@ -180,7 +191,7 @@ export function buildLayer(
     const logo = doc.splashLogoAssetId
       ? assets.get(doc.splashLogoAssetId)
       : undefined
-    const splash = buildSplash(item.splash, logo)
+    const splash = buildSplash(item.splash, logo, format)
     layer.append(splash.el)
     built.images.push(...splash.images)
     built.animate = splash.animate
@@ -194,15 +205,15 @@ export function buildLayer(
   switch (scene.type) {
     case 'packshot':
       layer.style.background = doc.packshotColour
-      layer.append(...packshot(doc, assets, built.images))
+      layer.append(...packshot(doc, assets, built.images, layout))
       break
 
     case 'publisher-logo': {
       const { maxWidth, maxHeight, fontSize } = layout.publisherLogo
       const box: Style = {
         ...rect({
-          x: (stage.width - maxWidth) / 2,
-          y: (stage.height - maxHeight) / 2,
+          x: (format.width - maxWidth) / 2,
+          y: (format.height - maxHeight) / 2,
           width: maxWidth,
           height: maxHeight,
         }),
@@ -242,9 +253,9 @@ export function buildLayer(
         asset
           ? image(asset, { ...rect(layout.inset), ...scaling }, built.images)
           : placeholder(rect(layout.inset), 'Screenshot'),
-        gameCaption(doc),
+        gameCaption(doc, layout),
       )
-      built.captions = overlayCaptions(item, scene.captions)
+      built.captions = overlayCaptions(item, scene.captions, layout)
       break
 
     case 'gameplay':
@@ -270,8 +281,8 @@ export function buildLayer(
       } else {
         layer.append(placeholder(rect(layout.inset), 'Gameplay clip'))
       }
-      layer.append(gameCaption(doc))
-      built.captions = overlayCaptions(item, scene.captions)
+      layer.append(gameCaption(doc, layout))
+      built.captions = overlayCaptions(item, scene.captions, layout)
       break
   }
   layer.append(...built.captions.map((c) => c.el))
@@ -282,6 +293,7 @@ function packshot(
   doc: ProjectDoc,
   assets: Map<string, CompositionAsset>,
   images: HTMLImageElement[],
+  layout: Layout,
 ) {
   const p = layout.packshot
   const boxArt = doc.boxArtAssetId ? assets.get(doc.boxArtAssetId) : undefined
@@ -289,13 +301,34 @@ function packshot(
     ? image(boxArt, { ...rect(p.boxArt), objectPosition: 'center' }, images)
     : placeholder(rect(p.boxArt), 'Box art')
 
-  const text: Style = { color: colours.text, textShadow, lineHeight: '1.08' }
-  const column = el('div', {
-    ...rect(p.prices),
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: doc.prices.length > 1 ? 'space-between' : 'flex-start',
-  })
+  const text: Style = {
+    color: colours.text,
+    textShadow,
+    lineHeight: '1.08',
+    ...(p.prices.align === 'center' ? { textAlign: 'center' } : {}),
+  }
+  // One column, or a grid when there are more pairs than fit in one.
+  const columns = Math.ceil(doc.prices.length / p.prices.maxRows)
+  const column = el(
+    'div',
+    columns > 1
+      ? {
+          ...rect(p.prices),
+          display: 'grid',
+          gridAutoFlow: 'column',
+          gridTemplateRows: `repeat(${Math.ceil(doc.prices.length / columns)}, auto)`,
+          gridTemplateColumns: `repeat(${columns}, 1fr)`,
+          alignContent: 'space-between',
+          columnGap: '40px',
+        }
+      : {
+          ...rect(p.prices),
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent:
+            doc.prices.length > 1 ? 'space-between' : 'flex-start',
+        },
+  )
   if (doc.prices.length === 0) {
     column.append(
       el(
