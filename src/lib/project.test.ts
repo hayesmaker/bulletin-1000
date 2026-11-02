@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_DUCKING,
   MAX_SPLASH_HOLD,
+  NO_EFFECTS,
   assetIdsInDoc,
   createProjectDoc,
   moveScene,
@@ -266,6 +267,19 @@ describe('backdrop', () => {
     expect(
       projectDocSchema.safeParse({ ...createProjectDoc(), backdrop: 'zoom' })
         .success,
+    ).toBe(false)
+  })
+})
+
+describe('effects', () => {
+  it('gives older docs no effects and caps amounts at 1', () => {
+    const { effects: _, ...old } = createProjectDoc()
+    expect(projectDocSchema.parse(old).effects).toEqual(NO_EFFECTS)
+    expect(
+      projectDocSchema.safeParse({
+        ...createProjectDoc(),
+        effects: { ...NO_EFFECTS, grain: 1.5 },
+      }).success,
     ).toBe(false)
   })
 })

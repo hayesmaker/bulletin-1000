@@ -30,6 +30,7 @@ import type { SceneSeek } from '#/components/CompositionPlayer'
 import { AssetBin } from '#/components/editor/AssetBin'
 import type { AssetUse } from '#/components/editor/AssetBin'
 import { DetailsForm } from '#/components/editor/DetailsForm'
+import { EffectsPanel } from '#/components/editor/EffectsPanel'
 import { ExportPanel } from '#/components/editor/ExportPanel'
 import { MusicPanel } from '#/components/editor/MusicPanel'
 import { NarrationPanel } from '#/components/editor/NarrationPanel'
@@ -297,6 +298,11 @@ function Editor() {
                     />
                   </>
                 ),
+              },
+              {
+                key: 'effects',
+                label: 'Effects',
+                children: <EffectsPanel doc={doc} update={update} />,
               },
             ]}
           />
