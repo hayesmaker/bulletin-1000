@@ -2,7 +2,12 @@ import { Button, ColorPicker, Form, Input, Segmented } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { formats } from '#/composition/theme'
 import { aspectRatioSchema } from '#/lib/project'
-import type { AspectRatio, PricePlatform, ProjectDoc } from '#/lib/project'
+import type {
+  AspectRatio,
+  Backdrop,
+  PricePlatform,
+  ProjectDoc,
+} from '#/lib/project'
 import type { AssetRow } from '#/server/db/schema'
 import { AssetSelect } from './AssetSelect'
 import type { UpdateDoc } from './useProjectDoc'
@@ -46,6 +51,24 @@ export function DetailsForm({ doc, assets, update }: Props) {
             label: formats[value].label,
           }))}
           onChange={(aspectRatio) => set({ aspectRatio })}
+        />
+      </Form.Item>
+      <Form.Item
+        label="Around the game screen"
+        extra={
+          doc.backdrop === 'blur'
+            ? 'A soft, darkened copy of the game fills the frame.'
+            : 'Black, like the originals.'
+        }
+      >
+        <Segmented<Backdrop>
+          block
+          value={doc.backdrop}
+          options={[
+            { value: 'black', label: 'Black' },
+            { value: 'blur', label: 'Blurred game' },
+          ]}
+          onChange={(backdrop) => set({ backdrop })}
         />
       </Form.Item>
       <Form.Item label="Game title" htmlFor="game-title">

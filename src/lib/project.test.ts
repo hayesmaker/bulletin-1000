@@ -258,3 +258,14 @@ describe('aspect ratio', () => {
     ).toBe(false)
   })
 })
+
+describe('backdrop', () => {
+  it('makes older docs black and rejects unknown backdrops', () => {
+    const { backdrop: _, ...old } = createProjectDoc()
+    expect(projectDocSchema.parse(old).backdrop).toBe('black')
+    expect(
+      projectDocSchema.safeParse({ ...createProjectDoc(), backdrop: 'zoom' })
+        .success,
+    ).toBe(false)
+  })
+})

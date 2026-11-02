@@ -2,7 +2,7 @@ import type { ProjectDoc, Scene } from '#/lib/project'
 import type { AssetInfo, ScheduledItem } from './schedule'
 import { buildSplash } from './splash'
 import type { SplashLayer } from './splash'
-import { colours, insetScaling } from './theme'
+import { backdrop, colours, insetScaling } from './theme'
 import type { Format, Layout } from './theme'
 
 // DOM builders for each scene type. Each returns an absolutely positioned
@@ -26,6 +26,8 @@ export interface VideoCue {
   end: number
   trimIn: number
   keepClipAudio: boolean
+  // The blurred copy behind it, redrawn from the video's current frame.
+  backdrop?: HTMLCanvasElement
 }
 
 export interface BuiltLayer {
@@ -98,6 +100,30 @@ function image(
   return img
 }
 
+// The 'blur' backdrop: covers the stage behind the game screen.
+const backdropStyle: Style = {
+  position: 'absolute',
+  inset: '0',
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+  filter: `blur(${backdrop.blur}px) brightness(${backdrop.brightness}) saturate(${backdrop.saturate})`,
+  transform: `scale(${backdrop.scale})`,
+}
+
+// Draws a video's current frame, small, onto its backdrop canvas.
+export function drawBackdrop(
+  video: HTMLVideoElement,
+  canvas: HTMLCanvasElement,
+) {
+  if (video.readyState < 2 || !video.videoWidth) return
+  const width = backdrop.width
+  const height = Math.round((width * video.videoHeight) / video.videoWidth)
+  if (canvas.width !== width) canvas.width = width
+  if (canvas.height !== height) canvas.height = height
+  canvas.getContext('2d')?.drawImage(video, 0, 0, width, height)
+}
+
 const scaling: Style = {
   imageRendering: insetScaling === 'pixelated' ? 'pixelated' : 'auto',
 }
@@ -144,7 +170,7 @@ function overlayCaptions(
     const node = el(
       'div',
       {
-        ...rect(inset),
+        ...rect(o.area ?? inset),
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -241,6 +267,9 @@ export function buildLayer(
     }
 
     case 'title-screen':
+      if (asset && doc.backdrop === 'blur') {
+        layer.append(image(asset, backdropStyle, built.images))
+      }
       layer.append(
         asset
           ? image(asset, { ...rect(layout.inset), ...scaling }, built.images)
@@ -249,6 +278,9 @@ export function buildLayer(
       break
 
     case 'screenshot':
+      if (asset && doc.backdrop === 'blur') {
+        layer.append(image(asset, backdropStyle, built.images))
+      }
       layer.append(
         asset
           ? image(asset, { ...rect(layout.inset), ...scaling }, built.images)
@@ -270,6 +302,9 @@ export function buildLayer(
         video.muted = true
         video.playsInline = true
         video.preload = 'auto'
+        const blurred =
+          doc.backdrop === 'blur' ? el('canvas', backdropStyle) : undefined
+        if (blurred) layer.append(blurred)
         layer.append(video)
         built.video = {
           el: video,
@@ -277,6 +312,7 @@ export function buildLayer(
           end: item.end,
           trimIn: scene.trimIn,
           keepClipAudio: scene.keepClipAudio,
+          backdrop: blurred,
         }
       } else {
         layer.append(placeholder(rect(layout.inset), 'Gameplay clip'))
