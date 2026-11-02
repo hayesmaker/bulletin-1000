@@ -1,4 +1,5 @@
-import type { AspectRatio } from '#/lib/project'
+import { NO_EFFECTS } from '#/lib/project'
+import type { AspectRatio, Effects } from '#/lib/project'
 
 // The Bulletin 1000 template theme: every font, colour, brand string, layout
 // measurement and timing the composition uses. Change the look here.
@@ -204,6 +205,67 @@ export const formats: Record<AspectRatio, Format> = {
     splash: { x: 0, y: 555, scale: 0.75 },
   },
 }
+
+// Filter effects (see effects.ts). Each is scaled by its amount in the
+// project, from 0 to 1; sizes are stage pixels at full strength.
+export const effects = {
+  // Tape: a soft picture, smeared more across than down.
+  softness: { blurX: 2.4, blurY: 0.9 },
+  // Tape: red and blue drift apart and smear sideways.
+  colourBleed: { offset: 5, smear: 4 },
+  // Tape: a noise texture of light and dark specks, new every frame.
+  grain: { tile: 256, opacity: 0.6, spread: 70 },
+  // Tape: the picture wobbles sideways and the head-switching noise band
+  // runs along the bottom.
+  tracking: { jitter: 2, band: 30, bandOpacity: 0.85 },
+  // Screen: dark lines `period` pixels apart.
+  scanlines: { period: 4, opacity: 0.45 },
+  // Screen: the picture bulges like a curved tube; corners go black.
+  curvature: { displacement: 110, mapWidth: 256 },
+  // Screen: darker towards the corners.
+  vignette: { opacity: 0.75, inner: 0.55 },
+}
+
+// Starting points for the Effects tab.
+export const effectPresets: Array<{ name: string; effects: Effects }> = [
+  { name: 'Clean', effects: NO_EFFECTS },
+  {
+    name: 'VHS tape',
+    effects: {
+      softness: 0.6,
+      colourBleed: 0.6,
+      grain: 0.4,
+      tracking: 0.5,
+      scanlines: 0,
+      curvature: 0,
+      vignette: 0.2,
+    },
+  },
+  {
+    name: 'CRT screen',
+    effects: {
+      softness: 0.3,
+      colourBleed: 0.2,
+      grain: 0.15,
+      tracking: 0,
+      scanlines: 0.6,
+      curvature: 0.5,
+      vignette: 0.6,
+    },
+  },
+  {
+    name: 'Worn tape on a CRT',
+    effects: {
+      softness: 0.7,
+      colourBleed: 0.8,
+      grain: 0.6,
+      tracking: 0.8,
+      scanlines: 0.5,
+      curvature: 0.5,
+      vignette: 0.6,
+    },
+  },
+]
 
 export const timing = {
   // Length of a dissolve into a scene (capped at half of either scene).

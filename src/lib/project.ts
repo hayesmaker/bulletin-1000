@@ -160,6 +160,29 @@ export const aspectRatioSchema = z.enum(['4:3', '16:9', '9:16'])
 // or a blurred copy of the game.
 export const backdropSchema = z.enum(['black', 'blur'])
 
+// Filter effects over the whole video, each an amount from 0 (off) to 1.
+// Tape effects come from the VHS recording; screen effects from the CRT.
+const amount = z.number().min(0).max(1).default(0)
+export const effectsSchema = z.object({
+  softness: amount,
+  colourBleed: amount,
+  grain: amount,
+  tracking: amount,
+  scanlines: amount,
+  curvature: amount,
+  vignette: amount,
+})
+
+export const NO_EFFECTS = {
+  softness: 0,
+  colourBleed: 0,
+  grain: 0,
+  tracking: 0,
+  scanlines: 0,
+  curvature: 0,
+  vignette: 0,
+}
+
 // Seconds a splash can be held for beyond its own length.
 export const MAX_SPLASH_HOLD = 3
 
@@ -167,6 +190,7 @@ export const projectDocSchema = z.object({
   version: z.literal(PROJECT_DOC_VERSION),
   aspectRatio: aspectRatioSchema.default('4:3'),
   backdrop: backdropSchema.default('black'),
+  effects: effectsSchema.default(NO_EFFECTS),
   title: z.string().max(100),
   publisher: z.string().max(100),
   prices: z.array(pricePlatformSchema).max(8),
@@ -200,6 +224,8 @@ export type Music = z.infer<typeof musicSchema>
 export type Splash = z.infer<typeof splashSchema>
 export type AspectRatio = z.infer<typeof aspectRatioSchema>
 export type Backdrop = z.infer<typeof backdropSchema>
+export type Effects = z.infer<typeof effectsSchema>
+export type Effect = keyof Effects
 export type VoiceLine = z.infer<typeof voiceLineSchema>
 export type Narration = z.infer<typeof narrationSchema>
 export type ProjectDoc = z.infer<typeof projectDocSchema>
@@ -212,6 +238,7 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
     version: PROJECT_DOC_VERSION,
     aspectRatio: '4:3',
     backdrop: 'black',
+    effects: NO_EFFECTS,
     title,
     publisher: '',
     prices: [],

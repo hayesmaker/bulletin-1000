@@ -59,6 +59,7 @@ Updated 2026-11-02.
   - 4:3 output is unchanged: frames are byte-identical to before.
   - **Backdrop (2026-11-02):** what fills the stage around the game screen is a project setting, black by default. 'blur' draws the clip's current frame small onto a canvas, CSS-blurred and darkened, in both preview and export (export output stays deterministic).
 - **Look: clean output for the MVP.** CRT/VHS filters come in the effects milestone.
+- **Effects (decided 2026-11-02):** CSS and SVG filters on the composition stage rather than WebGL shaders. The stage is DOM, which WebGL can't read without re-rendering it, and filters keep preview and export identical with one implementation. Each effect is an amount from 0 to 1 in the doc, with presets as starting points. Everything time-based comes from the frame number, and a video with every effect at 0 is drawn exactly as before.
 - **Uploads:** gameplay clips are limited (around 100MB or 2 min). Users set in/out points in the editor, and the server transcodes clips to a standard format (H.264/AAC MP4, constant frame rate) with ffmpeg on upload.
 
 ## Reference style guide
@@ -149,7 +150,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [x] Built-in 1989 jingle: an original synth ident (D major, ~150 bpm), synthesised deterministically in `src/server/jingle.server.ts`, cached under `DATA_DIR/generated/` and served at `/audio/jingle-1989`
 - [x] User options: splash logo image instead of the lettering; splash sound as built-in, none or an uploaded file
 - [x] Splash length: hold the splash on its last pose for up to 3s longer (Audio tab slider). The 1989 fade-out moves later; the jingle keeps its own length
-- [ ] Optional VHS softness on the splash (effects milestone)
+- [x] Optional VHS softness on the splash: covered by the effects milestone, whose filters apply to the whole video, splash included
 
 ## Later milestones
 
@@ -168,7 +169,14 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
   - [x] preview player fits tall formats to the window height; export captures at the format's size; the Export drawer shows each render's format
   - [x] "Around the game screen" setting (Details tab): black, like the originals, or a blurred copy of the game filling the frame (`backdrop` in the doc; look tuned in `theme.ts`). Works in every format. Cropping the game to fill was dropped, since it would cut off HUDs.
   - [x] Per-format overlay caption area (`overlayCaption.area` in the layout): over the game screen in 4:3 and 16:9, in the space above it in 9:16
-- [ ] Filter effects (CRT, VHS grain, scanlines, colour bleed), most likely as WebGL shaders so preview and export match
+- [x] Filter effects (VHS tape and CRT screen), built from CSS and SVG filters in the composition (not WebGL), so preview and export share one implementation
+  - [x] `effects` in the project doc: an amount from 0 to 1 for each of softness, colour bleed, grain, tracking (wobble and head-switching noise), scanlines, curvature and vignette
+  - [x] `src/composition/effects.ts`; strengths at full amount and the presets in `theme.ts`
+  - [x] Effects tab: presets (Clean, VHS tape, CRT screen, Worn tape on a CRT) and a slider per effect
+  - [x] Deterministic: grain, wobble and noise come from the frame number; textures come from a seeded generator. Frames are byte-identical across export pages.
+  - [ ] Export with effects is slow: about 4× real time for the heaviest preset on the dev machine, against about 0.65× without effects. The SVG filters run on the CPU in headless Chrome. Options: enable GPU rasterisation for the export browser, or move the costly effects (colour bleed, curvature) to an ffmpeg pass and keep the CSS versions for preview.
+  - [ ] Check preview frame rate with effects on a typical machine; if it's choppy, show a simplified look while playing
+  - [ ] More effects: dropout lines, tape crease, roll/hum bar, phosphor glow
 - [ ] Clerk auth and the My Videos page (list, re-edit, download)
 - [ ] Selectable and editable transitions/animations
 - [ ] Additional templates (e.g. a WHSmith-style compilation)
