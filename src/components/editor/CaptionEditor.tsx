@@ -2,7 +2,7 @@ import { Button, Input, Slider } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import type { Caption } from '#/lib/project'
 import { snap } from '#/composition/schedule'
-import { stage } from '#/composition/theme'
+import { fps } from '#/composition/theme'
 import { formatTime } from './labels'
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
   onChange: (captions: Caption[]) => void
 }
 
-const FRAME = 1 / stage.fps
+const FRAME = 1 / fps
 const DEFAULT_CAPTION_LENGTH = 2.5
 
 // Selling-point captions shown over the scene.

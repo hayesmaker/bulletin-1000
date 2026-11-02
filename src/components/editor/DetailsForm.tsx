@@ -1,6 +1,8 @@
-import { Button, ColorPicker, Form, Input } from 'antd'
+import { Button, ColorPicker, Form, Input, Segmented } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
-import type { PricePlatform, ProjectDoc } from '#/lib/project'
+import { formats } from '#/composition/theme'
+import { aspectRatioSchema } from '#/lib/project'
+import type { AspectRatio, PricePlatform, ProjectDoc } from '#/lib/project'
 import type { AssetRow } from '#/server/db/schema'
 import { AssetSelect } from './AssetSelect'
 import type { UpdateDoc } from './useProjectDoc'
@@ -13,7 +15,14 @@ interface Props {
 
 const MAX_PRICES = 8
 
-// Game details shown on the caption and packshot.
+const formatHelp: Record<AspectRatio, string> = {
+  '4:3': 'Like the originals.',
+  '16:9': 'Widescreen, with the 4:3 layout in the middle.',
+  '9:16': 'Vertical, for phones and short-video sites.',
+}
+
+// The video's format, and the game details shown on the caption and
+// packshot.
 export function DetailsForm({ doc, assets, update }: Props) {
   const set = (fields: Partial<ProjectDoc>, merge?: string) =>
     update((d) => ({ ...d, ...fields }), { merge })
@@ -25,6 +34,20 @@ export function DetailsForm({ doc, assets, update }: Props) {
 
   return (
     <Form layout="vertical">
+      <Form.Item
+        label="Format"
+        extra={`${formatHelp[doc.aspectRatio]} ${formats[doc.aspectRatio].width}×${formats[doc.aspectRatio].height}.`}
+      >
+        <Segmented<AspectRatio>
+          block
+          value={doc.aspectRatio}
+          options={aspectRatioSchema.options.map((value) => ({
+            value,
+            label: formats[value].label,
+          }))}
+          onChange={(aspectRatio) => set({ aspectRatio })}
+        />
+      </Form.Item>
       <Form.Item label="Game title" htmlFor="game-title">
         <Input
           id="game-title"

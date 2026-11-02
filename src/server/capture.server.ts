@@ -3,7 +3,6 @@ import os from 'node:os'
 import { chromium } from 'playwright-core'
 import type { Browser } from 'playwright-core'
 import type { Writable } from 'node:stream'
-import { stage } from '#/composition/theme'
 
 // Drives the render page (/render/:projectId) in headless Google Chrome:
 // steps the composition frame by frame and writes each frame as a PNG.
@@ -26,9 +25,16 @@ export function renderPageCount() {
   return Math.min(MAX_PAGES, Math.max(1, Math.floor(os.cpus().length / 2)))
 }
 
+interface Size {
+  width: number
+  height: number
+}
+
 interface CaptureOptions {
   url: string
   frameCount: number
+  // The stage size in pixels.
+  size: Size
   out: Writable
   // Called for each frame once it has been written, in order.
   onFrame: (frame: number) => void
@@ -37,15 +43,16 @@ interface CaptureOptions {
   pages?: number
 }
 
-const clip = { x: 0, y: 0, width: stage.width, height: stage.height, scale: 1 }
-
 async function openRenderPage(
   browser: Browser,
   url: string,
   frameCount: number,
+  size: Size,
 ) {
+  const { width, height } = size
+  const clip = { x: 0, y: 0, width, height, scale: 1 }
   const page = await browser.newPage({
-    viewport: { width: stage.width, height: stage.height },
+    viewport: { width, height },
     deviceScaleFactor: 1,
   })
   const errors: string[] = []
@@ -116,6 +123,7 @@ export function frameTurns() {
 export async function captureFrames({
   url,
   frameCount,
+  size,
   out,
   onFrame,
   cancelled,
@@ -130,7 +138,7 @@ export async function captureFrames({
     const count = Math.max(1, Math.min(pages, frameCount))
     const renderers = await Promise.all(
       Array.from({ length: count }, () =>
-        openRenderPage(browser, url, frameCount),
+        openRenderPage(browser, url, frameCount, size),
       ),
     )
     const turns = frameTurns()

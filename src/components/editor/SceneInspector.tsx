@@ -11,7 +11,7 @@ import { DeleteOutlined } from '@ant-design/icons'
 import { DEFAULT_GAMEPLAY_LENGTH, sceneLength } from '#/lib/project'
 import type { ProjectDoc, Scene, Transition } from '#/lib/project'
 import { snap, snapDown } from '#/composition/schedule'
-import { stage } from '#/composition/theme'
+import { fps } from '#/composition/theme'
 import type { AssetRow } from '#/server/db/schema'
 import { AssetSelect } from './AssetSelect'
 import { CaptionEditor } from './CaptionEditor'
@@ -111,7 +111,7 @@ export function SceneInspector({
         {scene.type !== 'gameplay' && (
           <Form.Item label="Length">
             <InputNumber
-              min={1 / stage.fps}
+              min={1 / fps}
               max={MAX_CARD_DURATION}
               step={0.5}
               suffix="s"

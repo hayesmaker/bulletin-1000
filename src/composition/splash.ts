@@ -1,7 +1,8 @@
 import { keyframeCurve } from './curve'
 import type { Keyframes } from './curve'
 import type { CompositionAsset } from './scenes'
-import { brand, fonts, splash as theme, stage, timing } from './theme'
+import { brand, fonts, splashFrame, splash as theme, timing } from './theme'
+import type { Format } from './theme'
 
 // The splash intros, recreated in code from the reference footage as
 // reinterpretations: the 1985 neon panel that flips in, and the static 1989
@@ -36,13 +37,13 @@ function svg(
   return node
 }
 
-function stageSvg(...children: Node[]) {
+function frameSvg(...children: Node[]) {
   const root = svg(
     'svg',
     {
-      width: stage.width,
-      height: stage.height,
-      viewBox: `0 0 ${stage.width} ${stage.height}`,
+      width: splashFrame.width,
+      height: splashFrame.height,
+      viewBox: `0 0 ${splashFrame.width} ${splashFrame.height}`,
     },
     ...children,
   )
@@ -52,6 +53,35 @@ function stageSvg(...children: Node[]) {
     overflow: 'visible',
   })
   return root
+}
+
+// The 1440×1080 frame the splash artwork is drawn in, placed on the stage
+// for the format.
+function placedFrame(format: Format) {
+  const { x, y, scale } = format.splash
+  const frame = document.createElement('div')
+  Object.assign(frame.style, {
+    position: 'absolute',
+    left: `${x}px`,
+    top: `${y}px`,
+    width: `${splashFrame.width}px`,
+    height: `${splashFrame.height}px`,
+    ...(scale === 1
+      ? {}
+      : { transform: `scale(${scale})`, transformOrigin: '0 0' }),
+  })
+  return frame
+}
+
+// The whole stage in frame coordinates, for backgrounds that fill it.
+function stageInFrame(format: Format) {
+  const { x, y, scale } = format.splash
+  return {
+    x: -x / scale,
+    y: -y / scale,
+    width: format.width / scale,
+    height: format.height / scale,
+  }
 }
 
 const points = (pts: Array<[number, number]>) =>
@@ -120,7 +150,10 @@ function keyframeEase(keys: Keyframes) {
   }
 }
 
-function splash1985(logo: CompositionAsset | undefined): SplashLayer {
+function splash1985(
+  logo: CompositionAsset | undefined,
+  format: Format,
+): SplashLayer {
   const t = theme['1985']
   const { grid, lettering: l, script: s } = t
   const images: HTMLImageElement[] = []
@@ -140,7 +173,7 @@ function splash1985(logo: CompositionAsset | undefined): SplashLayer {
     }
   }
 
-  const art = stageSvg(
+  const art = frameSvg(
     svg(
       'defs',
       {},
@@ -207,7 +240,7 @@ function splash1985(logo: CompositionAsset | undefined): SplashLayer {
 
   // The panel turns about its own centre: the grid and lettering together.
   const cx = grid.x + ((grid.columns - 1) * grid.pitchX + grid.cellWidth) / 2
-  const cy = stage.height / 2
+  const cy = splashFrame.height / 2
   const panel = document.createElement('div')
   Object.assign(panel.style, {
     position: 'absolute',
@@ -218,13 +251,15 @@ function splash1985(logo: CompositionAsset | undefined): SplashLayer {
   panel.append(art)
   if (logo) panel.append(logoImage(logo, t.logoBox, images))
 
+  const frame = placedFrame(format)
+  frame.append(panel)
   const el = document.createElement('div')
   Object.assign(el.style, {
     position: 'absolute',
     inset: '0',
     background: t.background,
   })
-  el.append(panel)
+  el.append(frame)
 
   const rotation = keyframeEase(t.rotation)
   const scale = keyframeEase(t.scale)
@@ -267,7 +302,10 @@ function splash1985(logo: CompositionAsset | undefined): SplashLayer {
   }
 }
 
-function splash1989(logo: CompositionAsset | undefined): SplashLayer {
+function splash1989(
+  logo: CompositionAsset | undefined,
+  format: Format,
+): SplashLayer {
   const t = theme['1989']
   const l = t.lettering
   const images: HTMLImageElement[] = []
@@ -416,7 +454,7 @@ function splash1989(logo: CompositionAsset | undefined): SplashLayer {
     slab('square', square, t.square),
   ]
 
-  const art = stageSvg(
+  const art = frameSvg(
     svg(
       'defs',
       {},
@@ -448,13 +486,13 @@ function splash1989(logo: CompositionAsset | undefined): SplashLayer {
           maskUnits: 'userSpaceOnUse',
           x: 0,
           y: l.baseline,
-          width: stage.width,
+          width: splashFrame.width,
           height: l.fontSize,
         },
         svg('rect', {
           x: 0,
           y: l.baseline + 26,
-          width: stage.width,
+          width: splashFrame.width,
           height: l.fontSize,
           fill: 'url(#b1k-fade-gradient)',
         }),
@@ -476,11 +514,7 @@ function splash1989(logo: CompositionAsset | undefined): SplashLayer {
         }),
       ),
     ),
-    svg('rect', {
-      width: stage.width,
-      height: stage.height,
-      fill: 'url(#b1k-sky)',
-    }),
+    svg('rect', { ...stageInFrame(format), fill: 'url(#b1k-sky)' }),
     // Shadows on the floor, then the shapes above them.
     shadow(
       svg('polygon', {
@@ -514,10 +548,12 @@ function splash1989(logo: CompositionAsset | undefined): SplashLayer {
     ...lettering,
   )
 
+  const frame = placedFrame(format)
+  frame.append(art)
+  if (logo) frame.append(logoImage(logo, t.logoBox, images))
   const scene = document.createElement('div')
   Object.assign(scene.style, { position: 'absolute', inset: '0' })
-  scene.append(art)
-  if (logo) scene.append(logoImage(logo, t.logoBox, images))
+  scene.append(frame)
 
   const el = document.createElement('div')
   Object.assign(el.style, {
@@ -564,6 +600,7 @@ function splash1989(logo: CompositionAsset | undefined): SplashLayer {
 export function buildSplash(
   year: '1985' | '1989',
   logo: CompositionAsset | undefined,
+  format: Format,
 ) {
-  return year === '1985' ? splash1985(logo) : splash1989(logo)
+  return year === '1985' ? splash1985(logo, format) : splash1989(logo, format)
 }
