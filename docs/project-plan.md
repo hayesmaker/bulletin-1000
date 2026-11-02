@@ -194,7 +194,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
     - default render pages raised from 4 to 8; more than 8 didn't help
     - x264 at `medium` encodes about 115 fps here, so it isn't the bottleneck
 
-  - [ ] Check preview frame rate with effects on a typical machine; if it's choppy, show a simplified look while playing
+  - [x] Checked preview frame rate with effects (2026-11-02): smooth in the author's browser, so no simplified preview is needed
   - [ ] More effects: dropout lines, tape crease, roll/hum bar, phosphor glow
 - [ ] Clerk auth and the My Videos page (list, re-edit, download)
 - [ ] Selectable and editable transitions/animations
