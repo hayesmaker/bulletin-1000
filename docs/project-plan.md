@@ -40,6 +40,7 @@ Updated 2026-11-02.
   - Generated audio is cached globally by a hash of provider, model, voice and text (`voice_clips` table, `DATA_DIR/voice/`), so unchanged lines cost nothing.
   - Limits: a global daily character cap (`TTS_DAILY_CHARACTERS`, default 20,000) and one request at a time, plus the key's own character limit set in ElevenLabs. Per-user limits come with auth.
   - The music ducks under narration at the project's ducking level.
+  - **Per-line settings and pauses (2026-11-02):** a line can override the project voice and the voice settings. ElevenLabs has no global pause rules (such as "after every comma"), so pauses are explicit markers in the text, converted to each model's syntax. Punctuation still shapes the read: full stops pause longer than commas, and dashes and ellipses add short pauses.
   - Without a key, `TTS_FAKE=1` gives a stand-in voice (tones) for development and tests.
 - **Scene timing:** a gameplay scene lasts as long as its trimmed clip. Card scenes (packshot, title, still screenshot) have a duration the user sets, with sensible defaults.
 - **Audio (MVP):**
@@ -160,7 +161,9 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
   - [x] a voice line on any scene, with a start offset; card scenes stretch to fit, lines on gameplay run over the cut
   - [x] narration voice, volume and "lower the music under narration" in the Audio tab; Generate / Generate all; stale lines flagged in the scene list and inspector, and export blocked until they're regenerated
   - [x] preview playback and export mixing
-  - [ ] Per-line voice settings (speed, stability) or a per-line voice
+  - [x] Per-line voice and settings: a "Voice settings" section under each line's text (voice, speed, stability, similarity, style; Reset returns to the project voice and the voice's own settings). The settings are part of the cache key and the up-to-date check; clips made before this keep their ids.
+  - [x] Pause markers: "Add pause" puts `[pause 0.5s]` at the cursor, and the length can be edited in the text. They become SSML break tags on Multilingual v2, Flash and Turbo, and `[short pause]`, `[pause]` or `[long pause]` on Eleven v3 and later. Each pause is up to 3s, with at most 3 a line, because more break tags make ElevenLabs unstable. The stand-in voice adds the pauses and follows the speed.
+  - [ ] Check pause markers and settings against real ElevenLabs voices (tests use the stand-in and a mocked API)
   - [ ] Show the account's remaining ElevenLabs quota (needs the `user_read` permission)
   - [ ] Delete cached voice clips nothing uses (part of the retention question)
 - [x] 16:9 and 9:16 layouts

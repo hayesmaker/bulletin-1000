@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_DUCKING,
   MAX_SPLASH_HOLD,
+  DEFAULT_PAUSE,
+  DEFAULT_VOICE_SETTINGS,
   NO_EFFECTS,
   assetIdsInDoc,
   createProjectDoc,
@@ -11,10 +13,13 @@ import {
   removeAssetReferences,
   removeScene,
   scenesNeedingVoice,
+  speechText,
   voiceClipIdsInDoc,
+  voiceLinePauses,
+  voiceLineProblem,
   voiceLineStatus,
 } from './project'
-import type { ProjectDoc, Scene, SceneType } from './project'
+import type { ProjectDoc, Scene, SceneType, VoiceLine } from './project'
 
 const uuid = () => crypto.randomUUID()
 
@@ -207,20 +212,89 @@ describe('voice lines', () => {
       const { doc, scene } = docWith(line, voiceId)
       return voiceLineStatus(doc, scene)
     }
-    const clip = { id: clipId, duration: 2, text: 'Out now', voiceId: 'v1' }
+    const clip = {
+      id: clipId,
+      duration: 2,
+      text: 'Out now',
+      voiceId: 'v1',
+      settings: null,
+    }
+    const line = (text: string, fields: Partial<VoiceLine> = {}) => ({
+      text,
+      offset: 0,
+      voiceId: null,
+      settings: null,
+      clip,
+      ...fields,
+    })
     expect(status(null)).toBe('none')
-    expect(status({ text: '  ', offset: 0, clip: null })).toBe('none')
-    expect(status({ text: 'Out now', offset: 0, clip: null })).toBe(
+    expect(status(line('  ', { clip: null }))).toBe('none')
+    expect(status(line('Out now', { clip: null }))).toBe('needs-generating')
+    expect(status(line(' Out now '))).toBe('ready')
+    expect(status(line('Out now!'))).toBe('needs-generating')
+    expect(status(line('Out now'), 'v2')).toBe('needs-generating')
+  })
+
+  it('follows the line’s own voice and settings', () => {
+    const status = (line: Scene['voiceLine'], voiceId?: string) => {
+      const { doc, scene } = docWith(line, voiceId)
+      return voiceLineStatus(doc, scene)
+    }
+    const settings = { ...DEFAULT_VOICE_SETTINGS, speed: 0.9 }
+    const clip = {
+      id: clipId,
+      duration: 2,
+      text: 'Out now',
+      voiceId: 'v3',
+      settings,
+    }
+    const line = { text: 'Out now', offset: 0, voiceId: 'v3', settings, clip }
+    expect(status(line)).toBe('ready')
+    // The project voice doesn't matter to a line with its own.
+    expect(status(line, 'v2')).toBe('ready')
+    expect(status({ ...line, voiceId: null })).toBe('needs-generating')
+    expect(status({ ...line, settings: { ...settings, style: 0.1 } })).toBe(
       'needs-generating',
     )
-    expect(status({ text: ' Out now ', offset: 0, clip })).toBe('ready')
-    expect(status({ text: 'Out now!', offset: 0, clip })).toBe(
-      'needs-generating',
+    expect(status({ ...line, settings: null })).toBe('needs-generating')
+  })
+
+  it('reads pause markers', () => {
+    expect(voiceLinePauses('A [pause] B [PAUSE 1.5s] C [pause 2]')).toEqual([
+      DEFAULT_PAUSE,
+      1.5,
+      2,
+    ])
+    expect(voiceLineProblem('A [pause 1s] B')).toBeUndefined()
+    expect(voiceLineProblem('A [pause 3.5s] B')).toMatch(/up to 3s/)
+    expect(voiceLineProblem('[pause] [pause] [pause] [pause]')).toMatch(
+      /at most 3/,
     )
-    expect(status({ text: 'Out now', offset: 0, clip }, 'v2')).toBe(
-      'needs-generating',
+    expect(speechText(' A, [pause 0.8s] B. ', 'break-tags')).toBe(
+      'A, <break time="0.8s" /> B.',
     )
-    const { doc } = docWith({ text: 'Out now', offset: 0, clip })
+    expect(speechText('A [pause 9s] B', 'break-tags')).toBe(
+      'A <break time="3s" /> B',
+    )
+    // Not a marker: read as written.
+    expect(speechText('A [paws] B', 'break-tags')).toBe('A [paws] B')
+  })
+
+  it('counts everything up to date when nothing needs generating', () => {
+    const clip = {
+      id: clipId,
+      duration: 2,
+      text: 'Out now',
+      voiceId: 'v1',
+      settings: null,
+    }
+    const { doc } = docWith({
+      text: 'Out now',
+      offset: 0,
+      voiceId: null,
+      settings: null,
+      clip,
+    })
     expect(voiceClipIdsInDoc(doc)).toEqual(new Set([clipId]))
     expect(scenesNeedingVoice(doc)).toEqual([])
   })

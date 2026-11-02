@@ -34,14 +34,24 @@ afterEach(() => {
 // The stand-in, counting its calls.
 function countingStandIn() {
   const provider = { ...standIn, calls: 0 }
-  provider.synthesize = (text, voice) => {
+  provider.synthesize = (text, voice, settings) => {
     provider.calls++
-    return standIn.synthesize(text, voice)
+    return standIn.synthesize(text, voice, settings)
   }
   return provider
 }
 
 describe('voiceClipId', () => {
+  it('changes with settings, but not for lines without them', () => {
+    const settings = { speed: 1, stability: 0.5, similarity: 0.75, style: 0 }
+    const base = voiceClipId(standIn, 'a', 'Hello')
+    expect(voiceClipId(standIn, 'a', 'Hello', null)).toBe(base)
+    expect(voiceClipId(standIn, 'a', 'Hello', settings)).not.toBe(base)
+    expect(
+      voiceClipId(standIn, 'a', 'Hello', { ...settings, speed: 1.1 }),
+    ).not.toBe(voiceClipId(standIn, 'a', 'Hello', settings))
+  })
+
   it('changes with the text, voice, provider and model', () => {
     const base = voiceClipId(standIn, 'a', 'Hello')
     expect(base).toMatch(/^[0-9a-f]{64}$/)
@@ -60,6 +70,7 @@ describe('generateVoiceClip', () => {
       db,
       `  ${text} `,
       'stand-in-low',
+      null,
       provider,
     )
     expect(clip.text).toBe(text)
@@ -68,19 +79,72 @@ describe('generateVoiceClip', () => {
     expect(clip.duration).toBeLessThan(text.length * 0.07 + 0.2)
     expect(fs.existsSync(path.join(tmp, 'voice', `${clip.id}.mp3`))).toBe(true)
 
-    expect(await generateVoiceClip(db, text, 'stand-in-low', provider)).toEqual(
-      clip,
-    )
+    expect(
+      await generateVoiceClip(db, text, 'stand-in-low', null, provider),
+    ).toEqual(clip)
     expect(provider.calls).toBe(1)
     expect(charactersUsedToday(db, 'stand-in')).toBe(text.length)
     expect(charactersUsedToday(db, 'elevenlabs')).toBe(0)
   })
 
+  it('reads pauses and speed into the stand-in, and keeps the settings', async () => {
+    const plain = await generateVoiceClip(
+      db,
+      'Out now',
+      'stand-in-low',
+      null,
+      standIn,
+    )
+    const paused = await generateVoiceClip(
+      db,
+      'Out now [pause 1s]',
+      'stand-in-low',
+      null,
+      standIn,
+    )
+    expect(paused.duration - plain.duration).toBeGreaterThan(0.9)
+    const settings = { speed: 0.7, stability: 0.5, similarity: 0.75, style: 0 }
+    const slow = await generateVoiceClip(
+      db,
+      'Out now on tape',
+      'stand-in-low',
+      settings,
+      standIn,
+    )
+    expect(slow.settings).toEqual(settings)
+    expect(slow.duration).toBeGreaterThan(
+      (
+        await generateVoiceClip(
+          db,
+          'Out now on tape',
+          'stand-in-low',
+          null,
+          standIn,
+        )
+      ).duration,
+    )
+  })
+
+  it('rejects too many or too long pauses', async () => {
+    await expect(
+      generateVoiceClip(
+        db,
+        'A [pause] B [pause] C [pause] D [pause] E',
+        'stand-in-low',
+        null,
+        standIn,
+      ),
+    ).rejects.toThrow(/at most 3 pauses/)
+    await expect(
+      generateVoiceClip(db, 'A [pause 4s] B', 'stand-in-low', null, standIn),
+    ).rejects.toThrow(/up to 3s/)
+  })
+
   it('runs one generation at a time', async () => {
     const provider = countingStandIn()
     const [a, b] = await Promise.all([
-      generateVoiceClip(db, 'Same line', 'stand-in-low', provider),
-      generateVoiceClip(db, 'Same line', 'stand-in-low', provider),
+      generateVoiceClip(db, 'Same line', 'stand-in-low', null, provider),
+      generateVoiceClip(db, 'Same line', 'stand-in-low', null, provider),
     ])
     expect(a).toEqual(b)
     expect(provider.calls).toBe(1)
@@ -89,12 +153,12 @@ describe('generateVoiceClip', () => {
   it('enforces the daily limit, but not for cached lines', async () => {
     vi.stubEnv('TTS_DAILY_CHARACTERS', '20')
     const provider = countingStandIn()
-    await generateVoiceClip(db, 'Twelve chars', 'stand-in-low', provider)
+    await generateVoiceClip(db, 'Twelve chars', 'stand-in-low', null, provider)
     await expect(
-      generateVoiceClip(db, 'Twelve again', 'stand-in-low', provider),
+      generateVoiceClip(db, 'Twelve again', 'stand-in-low', null, provider),
     ).rejects.toThrow(/daily narration limit/)
     await expect(
-      generateVoiceClip(db, 'Twelve chars', 'stand-in-low', provider),
+      generateVoiceClip(db, 'Twelve chars', 'stand-in-low', null, provider),
     ).resolves.toBeTruthy()
   })
 
@@ -128,12 +192,12 @@ describe('generateVoiceClip', () => {
 
   it('rejects empty and over-long lines, and works only when set up', async () => {
     await expect(
-      generateVoiceClip(db, '   ', 'stand-in-low', standIn),
+      generateVoiceClip(db, '   ', 'stand-in-low', null, standIn),
     ).rejects.toThrow(TtsError)
     await expect(
-      generateVoiceClip(db, 'x'.repeat(501), 'stand-in-low', standIn),
+      generateVoiceClip(db, 'x'.repeat(501), 'stand-in-low', null, standIn),
     ).rejects.toThrow(/500/)
-    await expect(generateVoiceClip(db, 'Hi', 'v', null)).rejects.toThrow(
+    await expect(generateVoiceClip(db, 'Hi', 'v', null, null)).rejects.toThrow(
       /ELEVENLABS_API_KEY/,
     )
   })
@@ -161,7 +225,7 @@ describe('ElevenLabs', () => {
   it('sends the line with the key in a header', async () => {
     const fetch = vi.fn(async () => new Response(new Uint8Array([1, 2, 3])))
     vi.stubGlobal('fetch', fetch)
-    const audio = await provider().synthesize('Hello', 'voice123')
+    const audio = await provider().synthesize('Hello', 'voice123', null)
     expect([...audio]).toEqual([1, 2, 3])
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe(
@@ -176,6 +240,46 @@ describe('ElevenLabs', () => {
       model_id: 'eleven_multilingual_v2',
       seed: 1000,
     })
+  })
+
+  it('sends line settings and turns pauses into break tags', async () => {
+    const fetch = vi.fn(async () => new Response(new Uint8Array([1])))
+    vi.stubGlobal('fetch', fetch)
+    await provider().synthesize('Out now. [pause 1.2s] Only £7.95!', 'v', {
+      speed: 0.9,
+      stability: 0.3,
+      similarity: 0.8,
+      style: 0.2,
+    })
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
+    expect(JSON.parse(init.body as string)).toEqual({
+      text: 'Out now. <break time="1.2s" /> Only £7.95!',
+      model_id: 'eleven_multilingual_v2',
+      seed: 1000,
+      voice_settings: {
+        speed: 0.9,
+        stability: 0.3,
+        similarity_boost: 0.8,
+        style: 0.2,
+        use_speaker_boost: true,
+      },
+    })
+  })
+
+  it('uses pause tags on models without break tags', async () => {
+    const fetch = vi.fn(async () => new Response(new Uint8Array([1])))
+    vi.stubGlobal('fetch', fetch)
+    vi.stubEnv('ELEVENLABS_API_KEY', 'sk_test')
+    vi.stubEnv('ELEVENLABS_MODEL', 'eleven_v3')
+    await ttsProvider()!.synthesize(
+      'A [pause 0.3s] B [pause] C [pause 2s] D',
+      'v',
+      null,
+    )
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
+    expect(JSON.parse(init.body as string).text).toBe(
+      'A [short pause] B [pause] C [long pause] D',
+    )
   })
 
   it.each([
@@ -204,7 +308,9 @@ describe('ElevenLabs', () => {
     [422, { detail: [{ msg: 'text too long' }] }, /text too long/],
   ])('explains a %i error', async (status, body, message) => {
     vi.stubGlobal('fetch', async () => Response.json(body, { status }))
-    await expect(provider().synthesize('Hi', 'v')).rejects.toThrow(message)
+    await expect(provider().synthesize('Hi', 'v', null)).rejects.toThrow(
+      message,
+    )
   })
 
   it('lists voices, keeping only the curated ones', async () => {

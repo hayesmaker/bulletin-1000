@@ -1,14 +1,30 @@
-import { Alert, Button, Input, InputNumber, Tag } from 'antd'
-import { AudioOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useRef, useState } from 'react'
+import { Alert, Button, Input, InputNumber, Select, Slider, Tag } from 'antd'
+import type { TextAreaRef } from 'antd/es/input/TextArea'
+import {
+  AudioOutlined,
+  DeleteOutlined,
+  DownOutlined,
+  PauseOutlined,
+  RightOutlined,
+} from '@ant-design/icons'
 import { voiceClipUrl } from '#/lib/assets'
 import {
+  DEFAULT_PAUSE,
   DEFAULT_VOICE_LINE_OFFSET,
+  DEFAULT_VOICE_SETTINGS,
+  MAX_PAUSE,
+  MAX_PAUSES,
   MAX_VOICE_LINE_LENGTH,
+  pauseMarker,
+  voiceLinePauses,
+  voiceLineProblem,
   voiceLineStatus,
 } from '#/lib/project'
-import type { ProjectDoc, Scene, VoiceLine } from '#/lib/project'
+import type { ProjectDoc, Scene, VoiceLine, VoiceSettings } from '#/lib/project'
 import { VOICE_LINE_TAIL, snap } from '#/composition/schedule'
 import { formatSeconds } from './labels'
+import { voiceLabel } from './NarrationPanel'
 import { PlayAudioButton } from './PlayAudioButton'
 import type { NarrationState } from './useNarration'
 
@@ -22,6 +38,48 @@ interface Props {
   onChange: (voiceLine: VoiceLine | null) => void
 }
 
+const sliders: Array<{
+  key: keyof VoiceSettings
+  label: string
+  help: string
+  min: number
+  max: number
+  format: (v: number) => string
+}> = [
+  {
+    key: 'speed',
+    label: 'Speed',
+    help: 'Slower or faster delivery, pauses included.',
+    min: 0.7,
+    max: 1.2,
+    format: (v) => `${v.toFixed(2)}×`,
+  },
+  {
+    key: 'stability',
+    label: 'Stability',
+    help: 'Lower is more expressive; higher is steadier.',
+    min: 0,
+    max: 1,
+    format: (v) => `${Math.round(v * 100)}%`,
+  },
+  {
+    key: 'similarity',
+    label: 'Similarity',
+    help: 'How closely the read sticks to the original voice.',
+    min: 0,
+    max: 1,
+    format: (v) => `${Math.round(v * 100)}%`,
+  },
+  {
+    key: 'style',
+    label: 'Style',
+    help: 'Exaggerates the voice’s style. Slower to generate.',
+    min: 0,
+    max: 1,
+    format: (v) => `${Math.round(v * 100)}%`,
+  },
+]
+
 // The narration spoken over a scene.
 export function VoiceLineEditor({
   doc,
@@ -34,6 +92,8 @@ export function VoiceLineEditor({
   const status = voiceLineStatus(doc, scene)
   const busy = narration.generating.has(scene.id)
   const setUp = Boolean(narration.status?.provider)
+  const textRef = useRef<TextAreaRef>(null)
+  const [showSettings, setShowSettings] = useState(false)
 
   if (!line) {
     return (
@@ -41,7 +101,13 @@ export function VoiceLineEditor({
         icon={<AudioOutlined />}
         block
         onClick={() =>
-          onChange({ text: '', offset: DEFAULT_VOICE_LINE_OFFSET, clip: null })
+          onChange({
+            text: '',
+            offset: DEFAULT_VOICE_LINE_OFFSET,
+            voiceId: null,
+            settings: null,
+            clip: null,
+          })
         }
       >
         Add a voice line
@@ -50,6 +116,34 @@ export function VoiceLineEditor({
   }
 
   const clip = line.clip
+  const problem = voiceLineProblem(line.text)
+  const pauses = voiceLinePauses(line.text).length
+  const custom = line.voiceId !== null || line.settings !== null
+  const voiceId = line.voiceId ?? doc.narration.voiceId
+  const projectVoice = narration.voices?.find(
+    (v) => v.voiceId === doc.narration.voiceId,
+  )
+  const settings = line.settings ?? DEFAULT_VOICE_SETTINGS
+
+  // Puts a pause marker at the cursor (or the end), spaced from its
+  // neighbours, and puts the cursor after it.
+  const addPause = () => {
+    const el = textRef.current?.resizableTextArea?.textArea
+    const at = el?.selectionStart ?? line.text.length
+    const before = line.text.slice(0, at)
+    const after = line.text.slice(el?.selectionEnd ?? at)
+    const marker =
+      (before && !/\s$/.test(before) ? ' ' : '') +
+      pauseMarker(DEFAULT_PAUSE) +
+      (/^\s/.test(after) ? '' : ' ')
+    const text = before + marker + after
+    if (text.length > MAX_VOICE_LINE_LENGTH) return
+    onChange({ ...line, text })
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(at + marker.length, at + marker.length)
+    })
+  }
   const stretchesTo =
     scene.type !== 'gameplay' && status === 'ready' && clip
       ? snap(line.offset + clip.duration + VOICE_LINE_TAIL)
@@ -63,6 +157,7 @@ export function VoiceLineEditor({
   return (
     <div className="flex flex-col gap-2">
       <Input.TextArea
+        ref={textRef}
         aria-label="Voice line"
         value={line.text}
         autoSize={{ minRows: 2, maxRows: 6 }}
@@ -71,6 +166,97 @@ export function VoiceLineEditor({
         placeholder="What the narrator says over this scene"
         onChange={(e) => onChange({ ...line, text: e.target.value })}
       />
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button
+          size="small"
+          icon={<PauseOutlined />}
+          disabled={pauses >= MAX_PAUSES}
+          onClick={addPause}
+        >
+          Add pause
+        </Button>
+        <span className="flex-1" />
+        {custom && !showSettings && <Tag className="m-0!">Custom</Tag>}
+        <Button
+          size="small"
+          type="link"
+          className="px-0!"
+          aria-expanded={showSettings}
+          icon={showSettings ? <DownOutlined /> : <RightOutlined />}
+          onClick={() => setShowSettings((open) => !open)}
+        >
+          Voice settings
+        </Button>
+      </div>
+      <div className="text-xs text-neutral-500">
+        Pauses go at the cursor. Change the length in the text, e.g. [pause
+        1.2s], up to {MAX_PAUSE}s; at most {MAX_PAUSES} a line.
+      </div>
+      {showSettings && (
+        <div className="flex flex-col gap-3 rounded border border-neutral-200 p-3">
+          <div>
+            <div className="mb-1 text-sm">Voice</div>
+            <Select
+              className="w-full"
+              showSearch={{ optionFilterProp: 'label' }}
+              loading={setUp && !narration.voices}
+              value={line.voiceId ?? ''}
+              options={[
+                {
+                  value: '',
+                  label: `Project voice${projectVoice ? ` (${projectVoice.name})` : ''}`,
+                },
+                ...(narration.voices ?? []).map((v) => ({
+                  value: v.voiceId,
+                  label: voiceLabel(v),
+                })),
+              ]}
+              onChange={(v: string) =>
+                onChange({ ...line, voiceId: v || null })
+              }
+            />
+          </div>
+          {sliders.map((s) => (
+            <div key={s.key}>
+              <div className="flex items-baseline justify-between text-sm">
+                <span>{s.label}</span>
+                <span className="text-xs text-neutral-500 tabular-nums">
+                  {line.settings ? s.format(settings[s.key]) : 'Voice’s own'}
+                </span>
+              </div>
+              <Slider
+                className="my-1!"
+                ariaLabelForHandle={s.label}
+                min={s.min}
+                max={s.max}
+                step={0.05}
+                value={settings[s.key]}
+                tooltip={{ formatter: (v) => s.format(v ?? 0) }}
+                onChange={(v) =>
+                  onChange({ ...line, settings: { ...settings, [s.key]: v } })
+                }
+              />
+              <div className="text-xs text-neutral-500">{s.help}</div>
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <span className="flex-1 text-xs text-neutral-500">
+              {line.settings
+                ? 'Moving any slider sets all four for this line.'
+                : 'Until you move a slider, the voice’s own settings are used.'}
+            </span>
+            <Button
+              size="small"
+              disabled={!custom}
+              onClick={() =>
+                onChange({ ...line, voiceId: null, settings: null })
+              }
+            >
+              Reset
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <InputNumber
           aria-label="Start after"
@@ -86,7 +272,7 @@ export function VoiceLineEditor({
         <Button
           type={status === 'needs-generating' ? 'primary' : 'default'}
           loading={busy}
-          disabled={!setUp || status === 'none' || !doc.narration.voiceId}
+          disabled={!setUp || status === 'none' || !voiceId || !!problem}
           onClick={() => void narration.generate(doc, scene.id)}
         >
           {clip ? 'Regenerate' : 'Generate'}
@@ -128,7 +314,8 @@ export function VoiceLineEditor({
           title="Add ELEVENLABS_API_KEY to the server’s .env to generate voice lines."
         />
       )}
-      {setUp && !doc.narration.voiceId && (
+      {problem && <Alert type="error" showIcon title={problem} />}
+      {setUp && !voiceId && (
         <Alert
           type="info"
           showIcon
