@@ -39,6 +39,7 @@ Updated 2026-11-02.
   - Lines are only generated when the user asks (Generate / Generate all), never automatically, to protect credits. Export is blocked until every line is up to date.
   - Generated audio is cached globally by a hash of provider, model, voice and text (`voice_clips` table, `DATA_DIR/voice/`), so unchanged lines cost nothing.
   - Limits: a global daily character cap (`TTS_DAILY_CHARACTERS`, default 20,000) and one request at a time, plus the key's own character limit set in ElevenLabs. Per-user limits come with auth.
+  - **Quotas (decided 2026-11-02):** users never see the ElevenLabs account's quota; that's the operator's cost. Each user gets their own TTS credits from their plan, so this waits for auth and monetisation. Until then the global daily cap protects the account.
   - The music ducks under narration at the project's ducking level.
   - **Per-line settings and pauses (2026-11-02):** a line can override the project voice and the voice settings. ElevenLabs has no global pause rules (such as "after every comma"), so pauses are explicit markers in the text, converted to each model's syntax. Punctuation still shapes the read: full stops pause longer than commas, and dashes and ellipses add short pauses.
   - Without a key, `TTS_FAKE=1` gives a stand-in voice (tones) for development and tests.
@@ -164,7 +165,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
   - [x] Per-line voice and settings: a "Voice settings" section under each line's text (voice, speed, stability, similarity, style; Reset returns to the project voice and the voice's own settings). The settings are part of the cache key and the up-to-date check; clips made before this keep their ids.
   - [x] Pause markers: "Add pause" puts `[pause 0.5s]` at the cursor, and the length can be edited in the text. They become SSML break tags on Multilingual v2, Flash and Turbo, and `[short pause]`, `[pause]` or `[long pause]` on Eleven v3 and later. Each pause is up to 3s, with at most 3 a line, because more break tags make ElevenLabs unstable. The stand-in voice adds the pauses and follows the speed.
   - [x] Checked pause markers and settings against real ElevenLabs voices (2026-11-02): all worked as expected
-  - [ ] Show the account's remaining ElevenLabs quota (needs the `user_read` permission)
+  - [ ] Operator alert when the ElevenLabs account runs low: check the remaining quota (needs the key's `user_read` permission) and warn in the server log or an admin view. Not shown to users. Per-user credits are under monetisation.
   - [ ] Delete cached voice clips nothing uses (part of the retention question)
 - [x] 16:9 and 9:16 layouts
   - [x] `aspectRatio` in the project doc (older docs and render docs default to 4:3); Format picker in the Details tab
@@ -185,6 +186,11 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [ ] Additional templates (e.g. a WHSmith-style compilation)
 - [ ] Homepage with a promo video made by the tool itself
 - [ ] Monetisation tiers (free / standard / pro), where limits might include render length, watermark, resolution, and TTS characters
+  - [ ] Per-user TTS credits (needs auth):
+    - a usage ledger: each generation records the user and the characters it cost (`voice_clips` already stores characters and time)
+    - a monthly character allowance from the user's plan, shown in the editor (e.g. "1,240 of 10,000 characters left this month")
+    - checked on the server before calling ElevenLabs, replacing the global daily cap as the per-user limit
+  - [ ] Decide how cache hits count: the voice clip cache is shared, so a line someone else already generated costs nothing to make again. Charging only for real generations is simplest; regenerations are real requests and cost credits.
 
 ## Open questions
 
