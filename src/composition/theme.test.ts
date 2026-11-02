@@ -18,6 +18,9 @@ describe.each(Object.entries(formats))('%s format', (_, format) => {
     expect(inside(layout.inset, width, height)).toBe(true)
     expect(inside(layout.packshot.boxArt, width, height)).toBe(true)
     expect(inside(layout.packshot.prices, width, height)).toBe(true)
+    const area = layout.overlayCaption.area ?? layout.inset
+    expect(inside(area, width, height)).toBe(true)
+    expect(layout.overlayCaption.maxWidth).toBeLessThanOrEqual(area.width)
     expect(layout.publisherLogo.maxWidth).toBeLessThanOrEqual(width)
     expect(layout.publisherLogo.maxHeight).toBeLessThanOrEqual(height)
     expect(layout.caption.y).toBeGreaterThan(

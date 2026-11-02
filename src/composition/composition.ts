@@ -3,7 +3,7 @@ import { BUILT_IN_JINGLE_URL, voiceClipUrl } from '#/lib/assets'
 import type { ProjectDoc } from '#/lib/project'
 import { buildSchedule, musicGain } from './schedule'
 import type { Schedule } from './schedule'
-import { buildLayer } from './scenes'
+import { buildLayer, drawBackdrop } from './scenes'
 import { splashFontFaces } from './splash'
 import type { CaptionCue, CompositionAsset, VideoCue } from './scenes'
 import { colours, fonts, formats, fps } from './theme'
@@ -189,6 +189,16 @@ export function createComposition(
     ),
   ]).then(() => document.fonts.ready.then(() => undefined))
 
+  // Preview: a paused seek lands after syncMedia has run, so redraw the
+  // backdrop when it does. (Export draws it in renderFrame.)
+  for (const v of videos) {
+    const canvas = v.backdrop
+    if (canvas) {
+      v.el.addEventListener('seeked', () => drawBackdrop(v.el, canvas))
+      v.el.addEventListener('loadeddata', () => drawBackdrop(v.el, canvas))
+    }
+  }
+
   const clampTime = (t: number) =>
     Math.min(Math.max(t, 0), Math.max(schedule.duration - 1e-6, 0))
 
@@ -213,6 +223,7 @@ export function createComposition(
         if (!v.el.paused) v.el.pause()
         if (drift > PAUSED_DRIFT) v.el.currentTime = desired
       }
+      if (v.backdrop) drawBackdrop(v.el, v.backdrop)
     }
 
     const cue = schedule.music
@@ -254,6 +265,7 @@ export function createComposition(
           // previous frame.
           await seekVideo(v.el, v.trimIn + (t - v.start) + 1e-3)
           still(v.el)
+          if (v.backdrop) drawBackdrop(v.el, v.backdrop)
         }),
     )
   }
