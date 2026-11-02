@@ -3,7 +3,13 @@ import { createHash } from 'node:crypto'
 import fsp from 'node:fs/promises'
 import path from 'node:path'
 import { and, eq, gt, sql } from 'drizzle-orm'
-import { MAX_VOICE_LINE_LENGTH } from '#/lib/project'
+import {
+  MAX_VOICE_LINE_LENGTH,
+  speechText,
+  voiceLinePauses,
+  voiceLineProblem,
+} from '#/lib/project'
+import type { VoiceSettings } from '#/lib/project'
 import { dataDir } from '#/server/config.server'
 import type { Db } from '#/server/db/client.server'
 import { voiceClips } from '#/server/db/schema'
@@ -37,8 +43,13 @@ export interface Voice {
 export interface TtsProvider {
   name: 'elevenlabs' | 'stand-in'
   model: string
-  // MP3 audio of the text.
-  synthesize: (text: string, voiceId: string) => Promise<Buffer>
+  // MP3 audio of the line. `text` may hold pause markers ("[pause 0.8s]");
+  // settings null means the voice's own.
+  synthesize: (
+    text: string,
+    voiceId: string,
+    settings: VoiceSettings | null,
+  ) => Promise<Buffer>
   listVoices: () => Promise<Voice[]>
 }
 
@@ -121,6 +132,11 @@ export async function elevenLabsError(response: Response) {
   )
 }
 
+// Eleven v3 and later have no SSML break tags; they take bracketed pause
+// tags instead.
+export const pauseStyle = (model: string) =>
+  /^eleven_v\d/.test(model) ? 'audio-tags' : 'break-tags'
+
 function elevenLabs(key: string, model: string): TtsProvider {
   const request = async (url: string, init: RequestInit = {}) => {
     let response: Response
@@ -142,13 +158,26 @@ function elevenLabs(key: string, model: string): TtsProvider {
   return {
     name: 'elevenlabs',
     model,
-    async synthesize(text, voiceId) {
+    async synthesize(text, voiceId, settings) {
       const response = await request(
         `/v1/text-to-speech/${encodeURIComponent(voiceId)}?output_format=mp3_44100_128`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
-          body: JSON.stringify({ text, model_id: model, seed: SEED }),
+          body: JSON.stringify({
+            text: speechText(text, pauseStyle(model)),
+            model_id: model,
+            seed: SEED,
+            ...(settings && {
+              voice_settings: {
+                stability: settings.stability,
+                similarity_boost: settings.similarity,
+                style: settings.style,
+                speed: settings.speed,
+                use_speaker_boost: true,
+              },
+            }),
+          }),
         },
       )
       return Buffer.from(await response.arrayBuffer())
@@ -190,12 +219,20 @@ const standInVoices: Array<Voice & { pitch: number }> = [
 export const standIn: TtsProvider = {
   name: 'stand-in',
   model: 'tones-v1',
-  synthesize(text, voiceId) {
+  synthesize(text, voiceId, settings) {
     const voice = standInVoices.find((v) => v.voiceId === voiceId)
     if (!voice) {
       return Promise.reject(new TtsError('Unknown stand-in voice.'))
     }
-    const seconds = Math.max(0.6, text.length * STAND_IN_SECONDS_PER_CHARACTER)
+    // Spoken characters at the line's speed, plus its pauses.
+    const spoken = speechText(text, 'break-tags').replace(/<break[^>]*>/g, '')
+    const pauses = voiceLinePauses(text).reduce((sum, p) => sum + p, 0)
+    const seconds = Math.max(
+      0.6,
+      (spoken.length * STAND_IN_SECONDS_PER_CHARACTER) /
+        (settings?.speed ?? 1) +
+        pauses,
+    )
     const tone = `0.4*sin(2*PI*${voice.pitch}*t)*(0.55+0.45*sin(2*PI*4*t))`
     return new Promise<Buffer>((resolve, reject) => {
       const child = spawn(
@@ -227,6 +264,7 @@ export function voiceClipId(
   provider: Pick<TtsProvider, 'name' | 'model'>,
   voiceId: string,
   text: string,
+  settings: VoiceSettings | null = null,
 ) {
   return createHash('sha256')
     .update(
@@ -236,6 +274,8 @@ export function voiceClipId(
         voiceId,
         seed: SEED,
         text,
+        // Only when set, so clips made before line settings keep their ids.
+        ...(settings && { settings }),
       }),
     )
     .digest('hex')
@@ -284,6 +324,7 @@ export interface GeneratedClip {
   duration: number
   text: string
   voiceId: string
+  settings: VoiceSettings | null
 }
 
 // The audio for a line, generated (and cached) if it isn't already.
@@ -291,6 +332,7 @@ export async function generateVoiceClip(
   db: Db,
   rawText: string,
   voiceId: string,
+  settings: VoiceSettings | null = null,
   provider = ttsProvider(),
 ): Promise<GeneratedClip> {
   if (!provider) {
@@ -305,11 +347,20 @@ export async function generateVoiceClip(
       `Lines can be up to ${MAX_VOICE_LINE_LENGTH} characters.`,
     )
   }
-  const id = voiceClipId(provider, voiceId, text)
+  const problem = voiceLineProblem(text)
+  if (problem) throw new TtsError(problem)
+  const id = voiceClipId(provider, voiceId, text, settings)
+  const clip = (duration: number) => ({
+    id,
+    duration,
+    text,
+    voiceId,
+    settings,
+  })
   const cached = async () => {
     const row = findVoiceClip(db, id)
     if (row && (await fileExists(path.join(dataDir(), row.path)))) {
-      return { id, duration: row.duration, text, voiceId }
+      return clip(row.duration)
     }
     return undefined
   }
@@ -327,7 +378,7 @@ export async function generateVoiceClip(
         `The daily narration limit is used up (${used.toLocaleString()} of ${limit.toLocaleString()} characters in the last 24 hours).`,
       )
     }
-    const audio = await provider.synthesize(text, voiceId)
+    const audio = await provider.synthesize(text, voiceId, settings)
     const file = voiceClipPath(id)
     await fsp.mkdir(path.dirname(file), { recursive: true })
     await fsp.writeFile(`${file}.part`, audio)
@@ -351,7 +402,7 @@ export async function generateVoiceClip(
         set: { duration, path: path.relative(dataDir(), file) },
       })
       .run()
-    return { id, duration, text, voiceId }
+    return clip(duration)
   })
   queue = run.catch(() => undefined)
   return run

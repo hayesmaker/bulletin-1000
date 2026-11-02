@@ -1,6 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
-import { MAX_VOICE_LINE_LENGTH, voiceIdSchema } from '#/lib/project'
+import {
+  MAX_VOICE_LINE_LENGTH,
+  voiceIdSchema,
+  voiceSettingsSchema,
+} from '#/lib/project'
 import { getDb } from '#/server/db/client.server'
 import {
   TtsError,
@@ -49,8 +53,11 @@ export const generateVoiceLine = createServerFn({ method: 'POST' })
     z.object({
       text: z.string().max(MAX_VOICE_LINE_LENGTH + 100),
       voiceId: voiceIdSchema,
+      settings: voiceSettingsSchema.nullable().default(null),
     }),
   )
   .handler(async ({ data }) =>
-    friendly(() => generateVoiceClip(getDb(), data.text, data.voiceId)),
+    friendly(() =>
+      generateVoiceClip(getDb(), data.text, data.voiceId, data.settings),
+    ),
   )

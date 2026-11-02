@@ -12,7 +12,7 @@ interface Props {
   narration: NarrationState
 }
 
-const voiceLabel = (v: Voice) =>
+export const voiceLabel = (v: Voice) =>
   [v.name, [v.accent, v.gender].filter(Boolean).join(', ')]
     .filter(Boolean)
     .join(' · ')
@@ -58,7 +58,7 @@ export function NarrationPanel({ doc, update, narration }: Props) {
       )}
       <Form.Item
         label="Voice"
-        extra="Changing the voice means generating every line again."
+        extra="Changing it means generating the lines that use it again. A line can have its own voice (Voice settings, under its text)."
       >
         <div className="flex gap-2">
           <Select

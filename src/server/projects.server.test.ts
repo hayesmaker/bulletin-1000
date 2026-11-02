@@ -139,7 +139,9 @@ describe('unknownVoiceClipIds', () => {
     const line = (id: string) => ({
       text: 'Hi',
       offset: 0,
-      clip: { id, duration: 1, text: 'Hi', voiceId: 'v' },
+      voiceId: null,
+      settings: null,
+      clip: { id, duration: 1, text: 'Hi', voiceId: 'v', settings: null },
     })
     const doc = {
       ...project.doc,

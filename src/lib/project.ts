@@ -41,22 +41,85 @@ export const voiceClipIdSchema = z.string().regex(/^[0-9a-f]{64}$/)
 export const MAX_VOICE_LINE_LENGTH = 500
 export const DEFAULT_VOICE_LINE_OFFSET = 0.4
 
-// Narration spoken over a scene, starting `offset` seconds into it. `clip`
-// is the generated audio and the text and voice it was made from; the line
-// needs generating again when either has changed since.
+// How a line is read. ElevenLabs' own defaults; speed runs from 0.7
+// (slowest) to 1.2.
+export const voiceSettingsSchema = z.object({
+  speed: z.number().min(0.7).max(1.2),
+  stability: z.number().min(0).max(1),
+  similarity: z.number().min(0).max(1),
+  style: z.number().min(0).max(1),
+})
+export const DEFAULT_VOICE_SETTINGS = {
+  speed: 1,
+  stability: 0.5,
+  similarity: 0.75,
+  style: 0,
+}
+
+// Narration spoken over a scene, starting `offset` seconds into it. A line
+// can use its own voice and settings; null means the project's voice and
+// the voice's own settings. `clip` is the generated audio and what it was
+// made from; the line needs generating again when any of that has changed.
 export const voiceLineSchema = z.object({
   text: z.string().max(MAX_VOICE_LINE_LENGTH),
   offset: seconds.max(30).default(DEFAULT_VOICE_LINE_OFFSET),
+  voiceId: voiceIdSchema.nullable().default(null),
+  settings: voiceSettingsSchema.nullable().default(null),
   clip: z
     .object({
       id: voiceClipIdSchema,
       duration: z.number().positive(),
       text: z.string(),
       voiceId: voiceIdSchema,
+      settings: voiceSettingsSchema.nullable().default(null),
     })
     .nullable()
     .default(null),
 })
+
+// Pauses in a voice line: "[pause]" or "[pause 0.8s]", up to MAX_PAUSE
+// seconds each and MAX_PAUSES per line (more makes ElevenLabs unstable).
+export const DEFAULT_PAUSE = 0.5
+export const MAX_PAUSE = 3
+export const MAX_PAUSES = 3
+const PAUSE_MARKER = /\[pause(?:\s+(\d+(?:\.\d+)?)\s*s?)?\s*\]/gi
+
+export const pauseMarker = (length: number) => `[pause ${length}s]`
+
+// The pause lengths in a line, in order.
+export function voiceLinePauses(text: string) {
+  return [...text.matchAll(PAUSE_MARKER)].map((m) =>
+    // The length group is missing when no length was written.
+    m[1] ? Number(m[1]) : DEFAULT_PAUSE,
+  )
+}
+
+// Why a line can't be generated as written, if it can't.
+export function voiceLineProblem(text: string): string | undefined {
+  const pauses = voiceLinePauses(text)
+  if (pauses.length > MAX_PAUSES) {
+    return `Use at most ${MAX_PAUSES} pauses in a line.`
+  }
+  if (pauses.some((p) => p > MAX_PAUSE)) {
+    return `Pauses can be up to ${MAX_PAUSE}s.`
+  }
+  return undefined
+}
+
+// The line as sent to the TTS model, with pause markers in its syntax:
+// SSML break tags, or (for models without them, like Eleven v3) the
+// nearest bracketed pause tag.
+export function speechText(text: string, pauses: 'break-tags' | 'audio-tags') {
+  return text.trim().replace(PAUSE_MARKER, (_, s: string | undefined) => {
+    const length = Math.min(s ? Number(s) : DEFAULT_PAUSE, MAX_PAUSE)
+    if (pauses === 'break-tags') return `<break time="${length}s" />`
+    return length < 0.5
+      ? '[short pause]'
+      : length < 1.5
+        ? '[pause]'
+        : '[long pause]'
+  })
+}
 
 const sceneBase = {
   id,
@@ -227,6 +290,7 @@ export type Backdrop = z.infer<typeof backdropSchema>
 export type Effects = z.infer<typeof effectsSchema>
 export type Effect = keyof Effects
 export type VoiceLine = z.infer<typeof voiceLineSchema>
+export type VoiceSettings = z.infer<typeof voiceSettingsSchema>
 export type Narration = z.infer<typeof narrationSchema>
 export type ProjectDoc = z.infer<typeof projectDocSchema>
 
@@ -384,8 +448,18 @@ export function removeAssetReferences(
 
 export type VoiceLineStatus = 'none' | 'needs-generating' | 'ready'
 
-// Whether a scene's voice line has audio matching its text and the
-// project's voice. Empty lines count as none.
+const sameSettings = (a: VoiceSettings | null, b: VoiceSettings | null) =>
+  a === b ||
+  (a !== null &&
+    b !== null &&
+    (Object.keys(a) as Array<keyof VoiceSettings>).every((k) => a[k] === b[k]))
+
+// The voice a line is read in: its own, or the project's.
+export const lineVoiceId = (doc: ProjectDoc, line: VoiceLine) =>
+  line.voiceId ?? doc.narration.voiceId
+
+// Whether a scene's voice line has audio matching its text, voice and
+// settings. Empty lines count as none.
 export function voiceLineStatus(
   doc: ProjectDoc,
   scene: Scene,
@@ -395,7 +469,8 @@ export function voiceLineStatus(
   const { clip } = line
   return clip &&
     clip.text === line.text.trim() &&
-    clip.voiceId === doc.narration.voiceId
+    clip.voiceId === lineVoiceId(doc, line) &&
+    sameSettings(clip.settings, line.settings)
     ? 'ready'
     : 'needs-generating'
 }

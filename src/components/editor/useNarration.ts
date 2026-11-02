@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { App } from 'antd'
-import { scenesNeedingVoice } from '#/lib/project'
+import { lineVoiceId, scenesNeedingVoice } from '#/lib/project'
 import type { ProjectDoc } from '#/lib/project'
 import {
   generateVoiceLine,
@@ -51,17 +51,19 @@ export function useNarration(update: UpdateDoc) {
   // Generates one scene's line. Returns false if it failed.
   const generate = useCallback(
     async (doc: ProjectDoc, sceneId: string) => {
-      const scene = doc.scenes.find((s) => s.id === sceneId)
-      const text = scene?.voiceLine?.text.trim()
-      const { voiceId } = doc.narration
-      if (!text) return true
+      const line = doc.scenes.find((s) => s.id === sceneId)?.voiceLine
+      const text = line?.text.trim()
+      if (!line || !text) return true
+      const voiceId = lineVoiceId(doc, line)
       if (!voiceId) {
         void message.warning('Choose a narration voice first (Audio tab)')
         return false
       }
       mark(sceneId, true)
       try {
-        const clip = await generateVoiceLine({ data: { text, voiceId } })
+        const clip = await generateVoiceLine({
+          data: { text, voiceId, settings: line.settings },
+        })
         update((d) => ({
           ...d,
           scenes: d.scenes.map((s) =>

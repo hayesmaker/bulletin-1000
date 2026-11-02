@@ -378,6 +378,7 @@ describe('narration', () => {
     duration,
     text,
     voiceId,
+    settings: null,
   })
   const withLine = (
     scene: Scene,
@@ -387,7 +388,13 @@ describe('narration', () => {
     voiceId = 'v1',
   ): Scene => ({
     ...scene,
-    voiceLine: { text, offset, clip: clip(text, duration, voiceId) },
+    voiceLine: {
+      text,
+      offset,
+      voiceId: null,
+      settings: null,
+      clip: clip(text, duration, voiceId),
+    },
   })
   const narrated = (scenes: Scene[], extra: Partial<ProjectDoc> = {}) =>
     doc({
