@@ -10,7 +10,6 @@ A web app that lets users generate their own Bulletin 1000 video magazine-style 
 
 - **Homepage:** includes a promotional video for the tool itself, made with the generator
 - **Editor:** the main user input side, where users add assets, enter details and scripts, and generate their videos
-- **My Videos:** users see their created content and download their videos
 
 **User inputs (full vision):**
 
@@ -22,7 +21,7 @@ A web app that lets users generate their own Bulletin 1000 video magazine-style 
 
 Generated videos should be downloadable and editable later.
 
-**Hosted service:** accounts, plans and billing for the hosted site are planned and built separately, outside this repo.
+**Hosted service:** accounts, multiple users, My Videos, plans and billing for the hosted site are planned and built separately, outside this repo.
 
 ## Decisions
 
@@ -196,7 +195,6 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 
   - [x] Checked preview frame rate with effects (2026-11-02): smooth in the author's browser, so no simplified preview is needed
   - [ ] More effects: dropout lines, tape crease, roll/hum bar, phosphor glow
-- [ ] My Videos page (list, re-edit, download)
 - [ ] Selectable and editable transitions/animations
 - [ ] Additional templates (e.g. a WHSmith-style compilation)
 - [ ] Homepage with a promo video made by the tool itself
