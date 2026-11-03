@@ -104,6 +104,8 @@ const scenes: Array<Scene> = [
     duration: 4,
     transitionIn: 'cut',
     voiceLine: null,
+    showTitle: true,
+    rule: true,
   },
   ...(titleAsset
     ? [
@@ -139,6 +141,8 @@ const scenes: Array<Scene> = [
     duration: 4,
     transitionIn: 'cut',
     voiceLine: null,
+    showTitle: true,
+    rule: true,
   },
 ]
 

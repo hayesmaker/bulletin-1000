@@ -357,3 +357,17 @@ describe('effects', () => {
     ).toBe(false)
   })
 })
+
+describe('packshot', () => {
+  it('gives older packshots no title or rule, and new ones both', () => {
+    const doc = createProjectDoc()
+    const [scene] = doc.scenes
+    if (scene.type !== 'packshot') throw new Error('expected a packshot')
+    expect(scene).toMatchObject({ showTitle: true, rule: true })
+    expect(newScene('packshot')).toMatchObject({ showTitle: true, rule: true })
+
+    const { showTitle: _, rule: __, ...old } = scene
+    const parsed = projectDocSchema.parse({ ...doc, scenes: [old] })
+    expect(parsed.scenes[0]).toMatchObject({ showTitle: false, rule: false })
+  })
+})

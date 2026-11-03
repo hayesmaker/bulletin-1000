@@ -85,9 +85,31 @@ export function SceneInspector({
         </Form.Item>
 
         {scene.type === 'packshot' && (
-          <p className="text-neutral-500">
-            Uses the box art, prices and colour from the Details tab.
-          </p>
+          <>
+            <p className="text-neutral-500">
+              Uses the box art, title, prices and colour from the Details tab.
+            </p>
+            <Form.Item
+              label="Show title"
+              extra={
+                doc.prices.length === 0
+                  ? 'Always shown while there are no prices.'
+                  : undefined
+              }
+            >
+              <Switch
+                checked={scene.showTitle || doc.prices.length === 0}
+                disabled={doc.prices.length === 0}
+                onChange={(showTitle) => onChange({ ...scene, showTitle })}
+              />
+            </Form.Item>
+            <Form.Item label="Line under the box art">
+              <Switch
+                checked={scene.rule}
+                onChange={(rule) => onChange({ ...scene, rule })}
+              />
+            </Form.Item>
+          </>
         )}
 
         {scene.type !== 'gameplay' && scene.type !== 'packshot' && (
