@@ -14,7 +14,7 @@ The visual and structural reference for the video template (promo structure, spl
 
 - As an llm agent you will never push or offer to push code to master.
 - All code will be reviewed by me, the author. You can Push PRs for me to review.
-- This repo is public. Don't add monetisation, pricing, billing, accounts/auth or other hosted-site plans or code to it; they belong in the separate private repo for the hosted service.
+- If this checkout is the public `hayesmaker/bulletin-1000` repo, don't add monetisation, pricing, billing, accounts/auth or other hosted-site plans or code; they belong in the private hosted-service repo.
 - Open every PR against `master`, never against another feature branch. Stacked PRs merged in quick succession end up in the old feature branch instead of `master` (this happened with #10 and #12). Branch from `master` once the previous PR is merged. If work has to start before then, branch from the unmerged feature branch but still target `master`, and say in the PR that its diff includes the earlier PR's commits until that one lands.
 
 ## Tech stack
