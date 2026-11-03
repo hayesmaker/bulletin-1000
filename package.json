@@ -1,6 +1,7 @@
 {
   "name": "bulletin-1000",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "imports": {
     "#/*": "./src/*"
