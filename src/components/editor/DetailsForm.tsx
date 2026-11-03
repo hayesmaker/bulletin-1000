@@ -1,10 +1,12 @@
-import { Button, ColorPicker, Form, Input, Segmented } from 'antd'
+import { Button, ColorPicker, Form, Input, Segmented, Select } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
+import { badgeStatuses, stores } from '#/composition/stores'
 import { formats } from '#/composition/theme'
-import { aspectRatioSchema } from '#/lib/project'
+import { aspectRatioSchema, storeSchema } from '#/lib/project'
 import type {
   AspectRatio,
   Backdrop,
+  BadgeStatus,
   PricePlatform,
   ProjectDoc,
 } from '#/lib/project'
@@ -153,6 +155,44 @@ export function DetailsForm({ doc, assets, update }: Props) {
             set({ packshotColour: c.toHexString() }, 'packshot-colour')
           }
         />
+      </Form.Item>
+      <Form.Item
+        label="Badge"
+        extra="Shown at the bottom of the packshot text, with the store's logo."
+      >
+        <div className="flex flex-col gap-2">
+          <Segmented<BadgeStatus | 'none'>
+            block
+            value={doc.badge?.status ?? 'none'}
+            options={[
+              { value: 'none', label: 'None' },
+              ...Object.entries(badgeStatuses).map(([value, s]) => ({
+                value: value as BadgeStatus,
+                label: s.label,
+              })),
+            ]}
+            onChange={(status) =>
+              set({
+                badge:
+                  status === 'none'
+                    ? null
+                    : { store: doc.badge?.store ?? 'itch', status },
+              })
+            }
+          />
+          {doc.badge && (
+            <Select
+              value={doc.badge.store}
+              options={storeSchema.options.map((value) => ({
+                value,
+                label: stores[value].name,
+              }))}
+              onChange={(store) =>
+                doc.badge && set({ badge: { ...doc.badge, store } })
+              }
+            />
+          )}
+        </div>
       </Form.Item>
     </Form>
   )

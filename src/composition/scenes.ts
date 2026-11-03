@@ -2,6 +2,7 @@ import type { ProjectDoc, Scene } from '#/lib/project'
 import type { AssetInfo, ScheduledItem } from './schedule'
 import { buildSplash } from './splash'
 import type { SplashLayer } from './splash'
+import { badgeStatuses, stores } from './stores'
 import { backdrop, colours, insetScaling } from './theme'
 import type { Format, Layout } from './theme'
 
@@ -371,6 +372,11 @@ function packshot(
       doc.title,
     )
 
+  const badge =
+    scene.showBadge && doc.badge
+      ? packshotBadge(doc.badge, layout, images)
+      : null
+
   if (doc.prices.length === 0) {
     nodes.push(
       el(
@@ -382,13 +388,17 @@ function packshot(
           justifyContent: 'flex-start',
         },
         title(),
+        ...(badge ? [badge] : []),
       ),
     )
     return nodes
   }
 
   // One column, or a grid when there are more pairs than fit in one.
-  const maxRows = scene.showTitle ? p.prices.maxRowsWithTitle : p.prices.maxRows
+  const maxRows =
+    p.prices.maxRows[
+      scene.showTitle ? (badge ? 'both' : 'title') : badge ? 'badge' : 'plain'
+    ]
   const columns = Math.ceil(doc.prices.length / maxRows)
   const pairs = (position: Style) =>
     el(
@@ -437,20 +447,77 @@ function packshot(
       ),
     )
 
-  if (!scene.showTitle) {
+  if (!scene.showTitle && !badge) {
     nodes.push(pairs(rect(p.prices)))
     return nodes
   }
-  // Title at the top; the pairs fill the rest, and the gap between them
-  // shrinks first when space is tight.
+  // Title at the top and badge at the bottom; the pairs fill the space
+  // between, and the gap under the title shrinks first when space is tight.
   nodes.push(
     el(
       'div',
       { ...rect(p.prices), display: 'flex', flexDirection: 'column' },
-      title(),
-      el('div', { flex: `0 1 ${p.titleGap}px` }),
-      pairs({ flex: '1 0 auto' }),
+      ...(scene.showTitle
+        ? [title(), el('div', { flex: `0 1 ${p.titleGap}px` })]
+        : []),
+      pairs({
+        flex: '1 0 auto',
+        ...(badge ? { marginBottom: `${p.badge.gap}px` } : {}),
+      }),
+      ...(badge ? [badge] : []),
     ),
   )
   return nodes
+}
+
+// "OUT NOW ON" over the store's logo, in a dark box at the bottom of the
+// packshot text.
+function packshotBadge(
+  badge: NonNullable<ProjectDoc['badge']>,
+  layout: Layout,
+  images: HTMLImageElement[],
+) {
+  const p = layout.packshot
+  const b = p.badge
+  const store = stores[badge.store]
+  const status = badgeStatuses[badge.status]
+  const logo = el('img', {
+    display: 'block',
+    height: `${b.logoHeight}px`,
+    width: `${b.logoHeight * store.aspect}px`,
+  })
+  logo.src = store.logo
+  logo.alt = store.name
+  images.push(logo)
+  return el(
+    'div',
+    {
+      flex: 'none',
+      marginTop: 'auto',
+      // At the bottom; the pairs above keep `gap` from it.
+      alignSelf: p.prices.align === 'center' ? 'center' : 'flex-start',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '8px',
+      padding: b.padding,
+      background: colours.badge,
+      border: `${b.border}px solid ${store.accent}`,
+      borderRadius: `${b.radius}px`,
+      boxShadow: textShadow,
+    },
+    el(
+      'div',
+      {
+        color: colours.text,
+        fontSize: `${b.fontSize}px`,
+        fontWeight: '700',
+        letterSpacing: '0.08em',
+        lineHeight: '1',
+        textTransform: 'uppercase',
+      },
+      `${status.label} ${status.preposition}`,
+    ),
+    logo,
+  )
 }

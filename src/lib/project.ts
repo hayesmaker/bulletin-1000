@@ -146,6 +146,8 @@ export const sceneSchema = z.discriminatedUnion('type', [
     // Off for older docs, on for new scenes.
     showTitle: z.boolean().default(false),
     rule: z.boolean().default(false),
+    // The project's badge, when it has one.
+    showBadge: z.boolean().default(true),
   }),
   z.object({
     ...sceneBase,
@@ -254,6 +256,16 @@ export const NO_EFFECTS = {
 // Seconds a splash can be held for beyond its own length.
 export const MAX_SPLASH_HOLD = 3
 
+// Stores with a logo for the packshot badge (see src/composition/stores.ts).
+export const storeSchema = z.enum(['itch'])
+export const badgeStatusSchema = z.enum(['out-now', 'coming-soon'])
+
+// "Out now on <logo>" or "Coming soon to <logo>" on the packshot.
+const badgeSchema = z.object({
+  status: badgeStatusSchema,
+  store: storeSchema,
+})
+
 export const projectDocSchema = z.object({
   version: z.literal(PROJECT_DOC_VERSION),
   aspectRatio: aspectRatioSchema.default('4:3'),
@@ -264,6 +276,7 @@ export const projectDocSchema = z.object({
   prices: z.array(pricePlatformSchema).max(8),
   boxArtAssetId: id.nullable(),
   packshotColour: hexColour,
+  badge: badgeSchema.nullable().default(null),
   splash: splashSchema,
   // An uploaded image shown instead of the splash's built-in lettering.
   splashLogoAssetId: id.nullable().default(null),
@@ -298,6 +311,9 @@ export type VoiceLine = z.infer<typeof voiceLineSchema>
 export type VoiceSettings = z.infer<typeof voiceSettingsSchema>
 export type Narration = z.infer<typeof narrationSchema>
 export type ProjectDoc = z.infer<typeof projectDocSchema>
+export type Badge = z.infer<typeof badgeSchema>
+export type BadgeStatus = Badge['status']
+export type Store = Badge['store']
 
 export const DEFAULT_PACKSHOT_COLOUR = '#1b23aa'
 export const DEFAULT_CARD_DURATION = 4
@@ -313,6 +329,7 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
     prices: [],
     boxArtAssetId: null,
     packshotColour: DEFAULT_PACKSHOT_COLOUR,
+    badge: null,
     splash: 'none',
     splashLogoAssetId: null,
     splashJingle: { type: 'built-in' },
@@ -334,6 +351,7 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
         duration: DEFAULT_CARD_DURATION,
         showTitle: true,
         rule: true,
+        showBadge: true,
       },
     ],
   }
@@ -363,6 +381,7 @@ export function newScene(
         duration: DEFAULT_CARD_DURATION,
         showTitle: true,
         rule: true,
+        showBadge: true,
       }
     case 'publisher-logo':
       return { ...base, type, assetId, duration: DEFAULT_LOGO_DURATION }

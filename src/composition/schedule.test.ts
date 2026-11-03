@@ -30,6 +30,7 @@ const card = (type: 'packshot', duration: number): Scene => ({
   voiceLine: null,
   showTitle: false,
   rule: false,
+  showBadge: true,
 })
 
 const gameplay = (overrides: Partial<Scene> = {}): Scene =>

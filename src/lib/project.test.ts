@@ -370,4 +370,17 @@ describe('packshot', () => {
     const parsed = projectDocSchema.parse({ ...doc, scenes: [old] })
     expect(parsed.scenes[0]).toMatchObject({ showTitle: false, rule: false })
   })
+
+  it('gives older docs no badge and checks the store', () => {
+    const { badge: _, ...old } = createProjectDoc()
+    expect(projectDocSchema.parse(old).badge).toBeNull()
+    const badge = { status: 'coming-soon', store: 'itch' }
+    expect(projectDocSchema.parse({ ...old, badge }).badge).toEqual(badge)
+    expect(
+      projectDocSchema.safeParse({
+        ...old,
+        badge: { ...badge, store: 'steam' },
+      }).success,
+    ).toBe(false)
+  })
 })

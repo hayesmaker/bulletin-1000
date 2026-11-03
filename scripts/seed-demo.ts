@@ -106,6 +106,7 @@ const scenes: Array<Scene> = [
     voiceLine: null,
     showTitle: true,
     rule: true,
+    showBadge: true,
   },
   ...(titleAsset
     ? [
@@ -143,6 +144,7 @@ const scenes: Array<Scene> = [
     voiceLine: null,
     showTitle: true,
     rule: true,
+    showBadge: true,
   },
 ]
 
