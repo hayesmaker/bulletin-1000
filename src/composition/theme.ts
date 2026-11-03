@@ -34,6 +34,7 @@ export const colours = {
   logo: '#ffc61a',
   // The packshot rule, sampled from the 1985 ACE promo.
   rule: '#daeeba',
+  badge: '#141414',
   placeholder: '#1a1a1a',
   placeholderText: '#6b6b6b',
 }
@@ -88,12 +89,12 @@ export interface Layout {
     // and the last with its bottom. Beyond `maxRows` pairs they go into
     // more columns.
     // The title, when shown, sits at the top of the area and the pairs go
-    // below it, with up to `titleGap` between (less when space is tight) and
-    // at most `maxRowsWithTitle` rows.
+    // below it, with up to `titleGap` between (less when space is tight).
+    // The badge, when shown, sits at the bottom of the area. `maxRows` is
+    // the most rows of pairs before another column, for each combination.
     prices: Rect & {
       align: 'left' | 'center'
-      maxRows: number
-      maxRowsWithTitle: number
+      maxRows: { plain: number; title: number; badge: number; both: number }
     }
     priceFontSize: number
     priceFontWeight: number
@@ -103,6 +104,15 @@ export interface Layout {
     titleGap: number
     // A rule from `x` to the right edge of the stage; y is its top.
     rule: { x: number; y: number; thickness: number }
+    // "Out now on <logo>": a small line of text over the store logo.
+    badge: {
+      gap: number
+      padding: string
+      radius: number
+      border: number
+      fontSize: number
+      logoHeight: number
+    }
   }
   publisherLogo: { maxWidth: number; maxHeight: number; fontSize: number }
 }
@@ -131,8 +141,7 @@ const layout4x3: Layout = {
       width: 650,
       height: 795,
       align: 'left',
-      maxRows: Infinity,
-      maxRowsWithTitle: 4,
+      maxRows: { plain: Infinity, title: 4, badge: 3, both: 3 },
     },
     priceFontSize: 84,
     priceFontWeight: 800,
@@ -143,6 +152,14 @@ const layout4x3: Layout = {
     // price, and the rule about 57px below the box art.
     titleGap: 100,
     rule: { x: 135, y: 1022, thickness: 6 },
+    badge: {
+      gap: 30,
+      padding: '16px 30px 22px',
+      radius: 14,
+      border: 4,
+      fontSize: 30,
+      logoHeight: 62,
+    },
   },
   publisherLogo: { maxWidth: 1000, maxHeight: 700, fontSize: 120 },
 }
@@ -183,8 +200,7 @@ const layout9x16: Layout = {
       width: 900,
       height: 460,
       align: 'center',
-      maxRows: 3,
-      maxRowsWithTitle: 2,
+      maxRows: { plain: 3, title: 2, badge: 2, both: 1 },
     },
     priceFontSize: 76,
     platformFontSize: 56,

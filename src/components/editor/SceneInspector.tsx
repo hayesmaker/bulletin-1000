@@ -87,7 +87,8 @@ export function SceneInspector({
         {scene.type === 'packshot' && (
           <>
             <p className="text-neutral-500">
-              Uses the box art, title, prices and colour from the Details tab.
+              Uses the box art, title, prices, colour and badge from the Details
+              tab.
             </p>
             <Form.Item
               label="Show title"
@@ -107,6 +108,16 @@ export function SceneInspector({
               <Switch
                 checked={scene.rule}
                 onChange={(rule) => onChange({ ...scene, rule })}
+              />
+            </Form.Item>
+            <Form.Item
+              label="Show badge"
+              extra={doc.badge ? undefined : 'Set a badge in the Details tab.'}
+            >
+              <Switch
+                checked={scene.showBadge && doc.badge !== null}
+                disabled={doc.badge === null}
+                onChange={(showBadge) => onChange({ ...scene, showBadge })}
               />
             </Form.Item>
           </>
