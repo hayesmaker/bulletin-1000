@@ -28,6 +28,8 @@ const card = (type: 'packshot', duration: number): Scene => ({
   duration,
   transitionIn: 'cut',
   voiceLine: null,
+  showTitle: false,
+  rule: false,
 })
 
 const gameplay = (overrides: Partial<Scene> = {}): Scene =>

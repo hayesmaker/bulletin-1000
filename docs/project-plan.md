@@ -105,6 +105,7 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 - [x] Theme config: fonts, colours, layout and timings in one place (`src/composition/theme.ts`). The font is Archivo, a free variable sans whose width axis covers both the condensed caption and the regular packshot text.
 - [x] Deterministic timeline builder (project JSON → schedule → GSAP timeline), with no real-time dependencies. All times are whole frames, and the same frame renders byte-identically across page loads when drawn in software without effects. With effects or the GPU, pixels can differ by ±1 colour level between runs, which is invisible.
 - [x] Packshot card (measured from the 1985 reference: box art left, price/platform pairs spread from the top of the box to its bottom; default colour sampled from the reference)
+  - [x] Title and rule, per packshot scene (2026-11-03, measured from the 1985 ACE promo): the game title above the prices with about a line's gap, and a cream rule under the box art running off the right edge. On for new packshot scenes, off for older ones, so their output is unchanged. With the title, the pairs go into a second column beyond 4 (4:3, 16:9) or 2 (9:16) rows.
 - [x] Publisher logo card (falls back to the publisher name) and title screen card
 - [x] Gameplay scene: 4:3 inset, "TITLE – Publisher" caption, overlay captions; screenshot scene with the same layout
 - [x] Cuts and short dissolves between scenes (dissolves overlap the previous scene, capped at half of either scene)

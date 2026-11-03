@@ -136,11 +136,16 @@ export const sceneSchema = z.discriminatedUnion('type', [
     assetId: id.nullable(),
     duration: cardDuration,
   }),
-  // Uses the project's box art, prices and packshot colour.
+  // Uses the project's box art, title, prices and packshot colour.
   z.object({
     ...sceneBase,
     type: z.literal('packshot'),
     duration: cardDuration,
+    // The game title above the prices (always shown when there are no
+    // prices), and a rule under the box art running off the right edge.
+    // Off for older docs, on for new scenes.
+    showTitle: z.boolean().default(false),
+    rule: z.boolean().default(false),
   }),
   z.object({
     ...sceneBase,
@@ -327,6 +332,8 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
         transitionIn: 'cut',
         voiceLine: null,
         duration: DEFAULT_CARD_DURATION,
+        showTitle: true,
+        rule: true,
       },
     ],
   }
@@ -350,7 +357,13 @@ export function newScene(
   const assetId = asset?.id ?? null
   switch (type) {
     case 'packshot':
-      return { ...base, type, duration: DEFAULT_CARD_DURATION }
+      return {
+        ...base,
+        type,
+        duration: DEFAULT_CARD_DURATION,
+        showTitle: true,
+        rule: true,
+      }
     case 'publisher-logo':
       return { ...base, type, assetId, duration: DEFAULT_LOGO_DURATION }
     case 'title-screen':

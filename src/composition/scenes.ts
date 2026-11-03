@@ -231,7 +231,7 @@ export function buildLayer(
   switch (scene.type) {
     case 'packshot':
       layer.style.background = doc.packshotColour
-      layer.append(...packshot(doc, assets, built.images, layout))
+      layer.append(...packshot(doc, scene, assets, built.images, layout))
       break
 
     case 'publisher-logo': {
@@ -327,6 +327,7 @@ export function buildLayer(
 
 function packshot(
   doc: ProjectDoc,
+  scene: Extract<Scene, { type: 'packshot' }>,
   assets: Map<string, CompositionAsset>,
   images: HTMLImageElement[],
   layout: Layout,
@@ -336,6 +337,20 @@ function packshot(
   const box = boxArt
     ? image(boxArt, { ...rect(p.boxArt), objectPosition: 'center' }, images)
     : placeholder(rect(p.boxArt), 'Box art')
+  const nodes: HTMLElement[] = [box]
+  if (scene.rule) {
+    nodes.push(
+      el('div', {
+        position: 'absolute',
+        left: `${p.rule.x}px`,
+        top: `${p.rule.y}px`,
+        right: '0',
+        height: `${p.rule.thickness}px`,
+        background: colours.rule,
+        boxShadow: textShadow,
+      }),
+    )
+  }
 
   const text: Style = {
     color: colours.text,
@@ -343,68 +358,99 @@ function packshot(
     lineHeight: '1.08',
     ...(p.prices.align === 'center' ? { textAlign: 'center' } : {}),
   }
-  // One column, or a grid when there are more pairs than fit in one.
-  const columns = Math.ceil(doc.prices.length / p.prices.maxRows)
-  const column = el(
-    'div',
-    columns > 1
-      ? {
-          ...rect(p.prices),
-          display: 'grid',
-          gridAutoFlow: 'column',
-          gridTemplateRows: `repeat(${Math.ceil(doc.prices.length / columns)}, auto)`,
-          gridTemplateColumns: `repeat(${columns}, 1fr)`,
-          alignContent: 'space-between',
-          columnGap: '40px',
-        }
-      : {
-          ...rect(p.prices),
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent:
-            doc.prices.length > 1 ? 'space-between' : 'flex-start',
-        },
-  )
+  const title = () =>
+    el(
+      'div',
+      {
+        ...text,
+        flex: 'none',
+        fontSize: `${p.titleFontSize}px`,
+        fontWeight: String(p.priceFontWeight),
+        textTransform: 'uppercase',
+      },
+      doc.title,
+    )
+
   if (doc.prices.length === 0) {
-    column.append(
+    nodes.push(
       el(
         'div',
         {
-          ...text,
-          fontSize: `${p.titleFontSize}px`,
-          fontWeight: String(p.priceFontWeight),
-          textTransform: 'uppercase',
+          ...rect(p.prices),
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'flex-start',
         },
-        doc.title,
+        title(),
       ),
     )
+    return nodes
   }
-  for (const { price, platform } of doc.prices) {
-    column.append(
-      el(
-        'div',
-        {},
+
+  // One column, or a grid when there are more pairs than fit in one.
+  const maxRows = scene.showTitle ? p.prices.maxRowsWithTitle : p.prices.maxRows
+  const columns = Math.ceil(doc.prices.length / maxRows)
+  const pairs = (position: Style) =>
+    el(
+      'div',
+      columns > 1
+        ? {
+            ...position,
+            display: 'grid',
+            gridAutoFlow: 'column',
+            gridTemplateRows: `repeat(${Math.ceil(doc.prices.length / columns)}, auto)`,
+            gridTemplateColumns: `repeat(${columns}, 1fr)`,
+            alignContent: 'space-between',
+            columnGap: '40px',
+          }
+        : {
+            ...position,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent:
+              doc.prices.length > 1 ? 'space-between' : 'flex-start',
+          },
+      ...doc.prices.map(({ price, platform }) =>
         el(
           'div',
-          {
-            ...text,
-            fontSize: `${p.priceFontSize}px`,
-            fontWeight: String(p.priceFontWeight),
-          },
-          price,
-        ),
-        el(
-          'div',
-          {
-            ...text,
-            fontSize: `${p.platformFontSize}px`,
-            fontWeight: String(p.platformFontWeight),
-            whiteSpace: 'pre-line',
-          },
-          platform,
+          {},
+          el(
+            'div',
+            {
+              ...text,
+              fontSize: `${p.priceFontSize}px`,
+              fontWeight: String(p.priceFontWeight),
+            },
+            price,
+          ),
+          el(
+            'div',
+            {
+              ...text,
+              fontSize: `${p.platformFontSize}px`,
+              fontWeight: String(p.platformFontWeight),
+              whiteSpace: 'pre-line',
+            },
+            platform,
+          ),
         ),
       ),
     )
+
+  if (!scene.showTitle) {
+    nodes.push(pairs(rect(p.prices)))
+    return nodes
   }
-  return [box, column]
+  // Title at the top; the pairs fill the rest, and the gap between them
+  // shrinks first when space is tight.
+  nodes.push(
+    el(
+      'div',
+      { ...rect(p.prices), display: 'flex', flexDirection: 'column' },
+      title(),
+      el('div', { flex: `0 1 ${p.titleGap}px` }),
+      pairs({ flex: '1 0 auto' }),
+    ),
+  )
+  return nodes
 }

@@ -32,6 +32,8 @@ export const colours = {
   text: '#ffffff',
   textShadow: 'rgba(0, 0, 0, 0.6)',
   logo: '#ffc61a',
+  // The packshot rule, sampled from the 1985 ACE promo.
+  rule: '#daeeba',
   placeholder: '#1a1a1a',
   placeholderText: '#6b6b6b',
 }
@@ -85,12 +87,22 @@ export interface Layout {
     // Price/platform pairs; the first pair aligns with the top of the area
     // and the last with its bottom. Beyond `maxRows` pairs they go into
     // more columns.
-    prices: Rect & { align: 'left' | 'center'; maxRows: number }
+    // The title, when shown, sits at the top of the area and the pairs go
+    // below it, with up to `titleGap` between (less when space is tight) and
+    // at most `maxRowsWithTitle` rows.
+    prices: Rect & {
+      align: 'left' | 'center'
+      maxRows: number
+      maxRowsWithTitle: number
+    }
     priceFontSize: number
     priceFontWeight: number
     platformFontSize: number
     platformFontWeight: number
     titleFontSize: number
+    titleGap: number
+    // A rule from `x` to the right edge of the stage; y is its top.
+    rule: { x: number; y: number; thickness: number }
   }
   publisherLogo: { maxWidth: number; maxHeight: number; fontSize: number }
 }
@@ -120,12 +132,17 @@ const layout4x3: Layout = {
       height: 795,
       align: 'left',
       maxRows: Infinity,
+      maxRowsWithTitle: 4,
     },
     priceFontSize: 84,
     priceFontWeight: 800,
     platformFontSize: 62,
     platformFontWeight: 500,
     titleFontSize: 84,
+    // Measured from the 1985 ACE promo: about a line between title and
+    // price, and the rule about 57px below the box art.
+    titleGap: 100,
+    rule: { x: 135, y: 1022, thickness: 6 },
   },
   publisherLogo: { maxWidth: 1000, maxHeight: 700, fontSize: 120 },
 }
@@ -140,6 +157,7 @@ const pillarbox = (dx: number): Layout => {
       ...p,
       boxArt: { ...p.boxArt, x: p.boxArt.x + dx },
       prices: { ...p.prices, x: p.prices.x + dx },
+      rule: { ...p.rule, x: p.rule.x + dx },
     },
   }
 }
@@ -166,9 +184,13 @@ const layout9x16: Layout = {
       height: 460,
       align: 'center',
       maxRows: 3,
+      maxRowsWithTitle: 2,
     },
     priceFontSize: 76,
     platformFontSize: 56,
+    titleGap: 60,
+    // Between the box art and the text.
+    rule: { x: 190, y: 1240, thickness: 6 },
   },
   publisherLogo: { maxWidth: 900, maxHeight: 900, fontSize: 110 },
 }
