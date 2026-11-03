@@ -30,7 +30,102 @@ export const captionSchema = z
     path: ['end'],
   })
 
-export const transitionSchema = z.enum(['cut', 'dissolve'])
+// How a scene comes in over the one before it (the splash, for the first
+// scene). Every transition but a cut overlaps the previous scene by its
+// length, capped at half of either scene. Directions are the way the new
+// picture travels.
+export const MAX_TRANSITION_LENGTH = 4
+const transitionLength = z.number().min(0.1).max(MAX_TRANSITION_LENGTH)
+export const directionSchema = z.enum(['left', 'right', 'up', 'down'])
+export const zoomOriginSchema = z.enum([
+  'centre',
+  'top-left',
+  'top-right',
+  'bottom-left',
+  'bottom-right',
+])
+
+const transitionTypes = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('cut') }),
+  z.object({ type: z.literal('dissolve'), length: transitionLength }),
+  // Fades out to a colour, then in from it.
+  z.object({
+    type: z.literal('dip'),
+    length: transitionLength,
+    colour: hexColour,
+  }),
+  z.object({
+    type: z.literal('wipe'),
+    length: transitionLength,
+    direction: directionSchema,
+    soft: z.boolean(),
+  }),
+  // A box or circle opening from the centre to show the new scene, or
+  // closing on the old one to uncover it.
+  z.object({
+    type: z.literal('iris'),
+    length: transitionLength,
+    shape: z.enum(['box', 'circle']),
+    mode: z.enum(['open', 'close']),
+  }),
+  // The new scene pushes the old one off.
+  z.object({
+    type: z.literal('push'),
+    length: transitionLength,
+    direction: directionSchema,
+  }),
+  // The new scene slides in over the old one.
+  z.object({
+    type: z.literal('slide'),
+    length: transitionLength,
+    direction: directionSchema,
+  }),
+  // 'in': the new scene grows from `origin`; 'out': the old one shrinks
+  // away into it, uncovering the new one.
+  z.object({
+    type: z.literal('zoom'),
+    length: transitionLength,
+    mode: z.enum(['in', 'out']),
+    origin: zoomOriginSchema,
+  }),
+  // A card flip: the old scene turns away and the new one turns in.
+  z.object({
+    type: z.literal('flip'),
+    length: transitionLength,
+    axis: z.enum(['horizontal', 'vertical']),
+  }),
+  // Drawn in line by line in the ZX Spectrum's screen order, in black and
+  // white, then the colour arrives row by row.
+  z.object({ type: z.literal('spectrum-load'), length: transitionLength }),
+  // A burst of tape-loading border stripes over the cut.
+  z.object({
+    type: z.literal('tape-loader'),
+    length: transitionLength,
+    palette: z.enum(['spectrum', 'c64']),
+  }),
+])
+
+// Older docs stored 'cut' or 'dissolve' (always 0.5s).
+export const transitionSchema = z.preprocess(
+  (v) =>
+    v === 'cut'
+      ? { type: 'cut' }
+      : v === 'dissolve'
+        ? { type: 'dissolve', length: 0.5 }
+        : v,
+  transitionTypes,
+)
+
+// The end of the video: a cut, or a fade to a colour over its last
+// `length` seconds.
+export const endingSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('cut') }),
+  z.object({
+    type: z.literal('fade'),
+    length: transitionLength,
+    colour: hexColour,
+  }),
+])
 
 // ElevenLabs voice ids, and the stand-in's.
 export const voiceIdSchema = z.string().regex(/^[A-Za-z0-9_-]{1,64}$/)
@@ -123,7 +218,7 @@ export function speechText(text: string, pauses: 'break-tags' | 'audio-tags') {
 
 const sceneBase = {
   id,
-  transitionIn: transitionSchema.default('cut'),
+  transitionIn: transitionSchema.default({ type: 'cut' }),
   voiceLine: voiceLineSchema.nullable().default(null),
 }
 
@@ -277,6 +372,7 @@ export const projectDocSchema = z.object({
   boxArtAssetId: id.nullable(),
   packshotColour: hexColour,
   badge: badgeSchema.nullable().default(null),
+  ending: endingSchema.default({ type: 'cut' }),
   splash: splashSchema,
   // An uploaded image shown instead of the splash's built-in lettering.
   splashLogoAssetId: id.nullable().default(null),
@@ -300,7 +396,11 @@ export type PricePlatform = z.infer<typeof pricePlatformSchema>
 export type Caption = z.infer<typeof captionSchema>
 export type Scene = z.infer<typeof sceneSchema>
 export type SceneType = Scene['type']
-export type Transition = z.infer<typeof transitionSchema>
+export type Transition = z.infer<typeof transitionTypes>
+export type TransitionType = Transition['type']
+export type Direction = z.infer<typeof directionSchema>
+export type ZoomOrigin = z.infer<typeof zoomOriginSchema>
+export type Ending = z.infer<typeof endingSchema>
 export type Music = z.infer<typeof musicSchema>
 export type Splash = z.infer<typeof splashSchema>
 export type AspectRatio = z.infer<typeof aspectRatioSchema>
@@ -330,6 +430,7 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
     boxArtAssetId: null,
     packshotColour: DEFAULT_PACKSHOT_COLOUR,
     badge: null,
+    ending: { type: 'cut' },
     splash: 'none',
     splashLogoAssetId: null,
     splashJingle: { type: 'built-in' },
@@ -346,7 +447,7 @@ export function createProjectDoc(title = 'Untitled game'): ProjectDoc {
       {
         id: crypto.randomUUID(),
         type: 'packshot',
-        transitionIn: 'cut',
+        transitionIn: { type: 'cut' },
         voiceLine: null,
         duration: DEFAULT_CARD_DURATION,
         showTitle: true,
@@ -363,13 +464,40 @@ export const DEFAULT_LOGO_DURATION = 2.5
 // A new gameplay scene uses the whole clip, up to this long.
 export const DEFAULT_GAMEPLAY_LENGTH = 10
 
+// A transition of the given type with its default settings.
+export function newTransition(type: TransitionType): Transition {
+  switch (type) {
+    case 'cut':
+      return { type }
+    case 'dissolve':
+      return { type, length: 0.5 }
+    case 'dip':
+      return { type, length: 0.8, colour: '#000000' }
+    case 'wipe':
+      return { type, length: 0.5, direction: 'right', soft: false }
+    case 'iris':
+      return { type, length: 0.6, shape: 'box', mode: 'open' }
+    case 'push':
+    case 'slide':
+      return { type, length: 0.5, direction: 'left' }
+    case 'zoom':
+      return { type, length: 0.6, mode: 'in', origin: 'centre' }
+    case 'flip':
+      return { type, length: 0.8, axis: 'horizontal' }
+    case 'spectrum-load':
+      return { type, length: 2 }
+    case 'tape-loader':
+      return { type, length: 0.5, palette: 'spectrum' }
+  }
+}
+
 export function newScene(
   type: SceneType,
   asset?: { id: string; duration?: number },
 ): Scene {
   const base = {
     id: crypto.randomUUID(),
-    transitionIn: 'cut' as const,
+    transitionIn: { type: 'cut' } as Transition,
     voiceLine: null,
   }
   const assetId = asset?.id ?? null

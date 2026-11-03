@@ -305,9 +305,49 @@ export const effectPresets: Array<{ name: string; effects: Effects }> = [
   },
 ]
 
+// How the transitions look (see transitions.ts).
+export const transitionLook = {
+  // A soft wipe's edge, as a fraction of the frame.
+  softWipe: 0.15,
+  flipPerspective: 2500,
+  spectrum: {
+    // The share of the time spent drawing lines; the rest brings in the
+    // colour.
+    lines: 0.8,
+    // The black-and-white look before the colour arrives.
+    mono: 'grayscale(1) contrast(6) brightness(1.15)',
+  },
+  tape: {
+    // Spectrum: the share of the time on the pilot tone before the data.
+    pilot: 0.4,
+    pilotHeight: [40, 90] as const,
+    dataHeight: [6, 30] as const,
+    // The Spectrum's red/cyan pilot and blue/yellow data border colours.
+    pilotColours: ['#d70000', '#00d7d7'] as const,
+    dataColours: ['#0000d7', '#d7d700'] as const,
+    // The C64 palette, for multicolour turbo-loader stripes.
+    c64: [
+      '#000000',
+      '#ffffff',
+      '#68372b',
+      '#70a4b2',
+      '#6f3d86',
+      '#588d43',
+      '#352879',
+      '#b8c76f',
+      '#6f4f25',
+      '#433900',
+      '#9a6759',
+      '#444444',
+      '#6c6c6c',
+      '#9ad284',
+      '#6c5eb5',
+      '#959595',
+    ],
+  },
+}
+
 export const timing = {
-  // Length of a dissolve into a scene (capped at half of either scene).
-  dissolve: 0.5,
   // Music fades out over the last part of the video.
   musicFadeOut: 1.5,
   // Splash lengths, measured from the reference footage.

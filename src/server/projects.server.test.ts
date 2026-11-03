@@ -95,7 +95,7 @@ describe('projects', () => {
             type: 'title-screen',
             assetId: missing,
             duration: 3,
-            transitionIn: 'cut',
+            transitionIn: { type: 'cut' },
             voiceLine: null,
           },
         ],

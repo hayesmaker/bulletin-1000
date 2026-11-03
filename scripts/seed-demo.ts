@@ -95,14 +95,14 @@ const scenes: Array<Scene> = [
     type: 'publisher-logo',
     assetId: logoAsset?.id ?? null,
     duration: 2.5,
-    transitionIn: 'cut',
+    transitionIn: { type: 'cut' },
     voiceLine: null,
   },
   {
     id: id(),
     type: 'packshot',
     duration: 4,
-    transitionIn: 'cut',
+    transitionIn: { type: 'cut' },
     voiceLine: null,
     showTitle: true,
     rule: true,
@@ -115,7 +115,7 @@ const scenes: Array<Scene> = [
           type: 'title-screen' as const,
           assetId: titleAsset.id,
           duration: 3,
-          transitionIn: 'cut' as const,
+          transitionIn: { type: 'cut' as const },
           voiceLine: null,
         },
       ]
@@ -129,7 +129,7 @@ const scenes: Array<Scene> = [
     keepClipAudio: false,
     duckMusic: true,
     duckLevel: null,
-    transitionIn: i === 0 ? 'cut' : 'dissolve',
+    transitionIn: i === 0 ? { type: 'cut' } : { type: 'dissolve', length: 0.5 },
     voiceLine: null,
     captions:
       i === 0
@@ -140,7 +140,7 @@ const scenes: Array<Scene> = [
     id: id(),
     type: 'packshot',
     duration: 4,
-    transitionIn: 'cut',
+    transitionIn: { type: 'cut' },
     voiceLine: null,
     showTitle: true,
     rule: true,

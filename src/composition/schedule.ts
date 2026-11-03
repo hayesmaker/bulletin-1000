@@ -1,9 +1,9 @@
 import { voiceLineStatus } from '#/lib/project'
-import type { ProjectDoc, Scene } from '#/lib/project'
+import type { ProjectDoc, Scene, Transition } from '#/lib/project'
 import { fps, timing } from './theme'
 
 // Turns a project doc into absolute times: when each scene starts and ends,
-// how long each dissolve lasts, and when the music and clip audio play.
+// how long each transition overlaps the item before, and when the music and clip audio play.
 // Pure and deterministic; every time is a whole number of frames.
 
 export interface AssetInfo {
@@ -28,8 +28,10 @@ export interface SceneItem {
 export type ScheduledItem = (SplashItem | SceneItem) & {
   start: number
   end: number
-  // Seconds of fade-in over the previous item (0 for a cut).
-  dissolve: number
+  // How this item comes in over the previous one, and for how many seconds
+  // the two overlap (0 for a cut, or for the first item).
+  transition: Transition
+  overlap: number
 }
 
 export interface MusicCue {
@@ -138,14 +140,14 @@ export function buildSchedule(
   const entries: Array<{
     item: SplashItem | SceneItem
     length: number
-    transition: 'cut' | 'dissolve'
+    transition: Transition
   }> = []
 
   if (doc.splash !== 'none') {
     entries.push({
       item: { kind: 'splash', id: 'splash', splash: doc.splash },
       length: splashLength(doc.splash, doc.splashHold),
-      transition: 'cut',
+      transition: { type: 'cut' },
     })
   }
   for (const scene of doc.scenes) {
@@ -161,16 +163,22 @@ export function buildSchedule(
   for (const entry of entries) {
     const length = snap(entry.length)
     const previous = items.at(-1)
-    let dissolve = 0
-    if (previous && entry.transition === 'dissolve') {
+    let overlap = 0
+    if (previous && entry.transition.type !== 'cut') {
       const previousLength = previous.end - previous.start
       // Rounded down to whole frames so it never exceeds its cap.
-      const cap = Math.min(timing.dissolve, previousLength / 2, length / 2)
-      dissolve = Math.floor(cap * fps + 1e-9) / fps
+      const cap = Math.min(
+        entry.transition.length,
+        previousLength / 2,
+        length / 2,
+      )
+      overlap = Math.floor(cap * fps + 1e-9) / fps
     }
-    const start = snap(cursor - dissolve)
+    const transition: Transition =
+      overlap > 0 ? entry.transition : { type: 'cut' }
+    const start = snap(cursor - overlap)
     const end = snap(start + length)
-    items.push({ ...entry.item, start, end, dissolve })
+    items.push({ ...entry.item, start, end, transition, overlap })
     cursor = end
   }
   const duration = items.at(-1)?.end ?? 0
