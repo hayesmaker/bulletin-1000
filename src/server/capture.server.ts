@@ -82,6 +82,22 @@ interface CaptureOptions {
   pages?: number
 }
 
+const OVERLAY_PREFIX = '[render] Removed the Vite error overlay:'
+
+// Runs in the render page. In dev, Vite shows server errors (e.g. a dropped
+// connection, which has nothing to do with the page) as an overlay on every
+// open page, which would end up in the video. Removes it as soon as it's
+// added and logs its message instead.
+function removeDevOverlay(prefix: string) {
+  new MutationObserver(() => {
+    for (const overlay of document.querySelectorAll('vite-error-overlay')) {
+      const message = overlay.shadowRoot?.querySelector('.message')
+      console.warn(prefix, message?.textContent.trim() ?? '(no message)')
+      overlay.remove()
+    }
+  }).observe(document, { childList: true, subtree: true })
+}
+
 async function openRenderPage(
   browser: Browser,
   url: string,
@@ -97,6 +113,10 @@ async function openRenderPage(
   })
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
+  page.on('console', (m) => {
+    if (m.text().startsWith(OVERLAY_PREFIX)) console.warn(m.text())
+  })
+  await page.addInitScript(removeDevOverlay, OVERLAY_PREFIX)
 
   await page.goto(url, { timeout: LOAD_TIMEOUT_MS })
   await page
