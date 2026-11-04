@@ -19,6 +19,8 @@ const MAX_HEIGHT = '75vh'
 // jumps again, even to the same scene.
 export interface SceneSeek {
   sceneId: string
+  // Plays from a second before the scene's transition in, instead.
+  transition?: boolean
 }
 
 interface Props {
@@ -64,9 +66,14 @@ export function CompositionPlayer({ doc, assets, seekTo }: Props) {
     const item = composition.schedule.items.find((i) => i.id === seekTo.sceneId)
     if (!item) return
     handledSeek.current = seekTo
+    if (seekTo.transition) {
+      setTime(Math.max(0, item.start - 1))
+      setPlaying(true)
+      return
+    }
     setPlaying(false)
-    // After any dissolve, so the scene is fully shown.
-    setTime(item.start + item.dissolve)
+    // After any transition, so the scene is fully shown.
+    setTime(item.start + item.overlap)
   }, [composition, seekTo])
 
   // Paused: show the current time.

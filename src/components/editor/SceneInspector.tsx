@@ -1,21 +1,14 @@
-import {
-  Button,
-  Form,
-  InputNumber,
-  Popconfirm,
-  Segmented,
-  Slider,
-  Switch,
-} from 'antd'
+import { Button, Form, InputNumber, Popconfirm, Slider, Switch } from 'antd'
 import { DeleteOutlined } from '@ant-design/icons'
 import { DEFAULT_GAMEPLAY_LENGTH, sceneLength } from '#/lib/project'
-import type { ProjectDoc, Scene, Transition } from '#/lib/project'
+import type { ProjectDoc, Scene } from '#/lib/project'
 import { snap, snapDown } from '#/composition/schedule'
 import { fps } from '#/composition/theme'
 import type { AssetRow } from '#/server/db/schema'
 import { AssetSelect } from './AssetSelect'
 import { CaptionEditor } from './CaptionEditor'
 import { ClipTrimmer } from './ClipTrimmer'
+import { TransitionEditor } from './TransitionEditor'
 import { VoiceLineEditor } from './VoiceLineEditor'
 import type { NarrationState } from './useNarration'
 import { sceneIcons, sceneLabels } from './labels'
@@ -33,6 +26,8 @@ interface Props {
   assets: AssetRow[]
   onChange: (scene: Scene) => void
   onDelete: () => void
+  // Plays the preview from just before this scene's transition.
+  onPreviewTransition: () => void
 }
 
 const MAX_CARD_DURATION = 30
@@ -48,6 +43,7 @@ export function SceneInspector({
   assets,
   onChange,
   onDelete,
+  onPreviewTransition,
 }: Props) {
   const asset =
     'assetId' in scene && scene.assetId
@@ -73,16 +69,19 @@ export function SceneInspector({
         </Popconfirm>
       </div>
       <Form layout="vertical">
-        <Form.Item label="Transition in">
-          <Segmented<Transition>
+        {index === 0 && doc.splash === 'none' ? (
+          <p className="text-neutral-500">
+            The first scene starts the video, so it has no transition in.
+          </p>
+        ) : (
+          <TransitionEditor
+            doc={doc}
             value={scene.transitionIn}
-            options={[
-              { value: 'cut', label: 'Cut' },
-              { value: 'dissolve', label: 'Dissolve' },
-            ]}
+            label={index === 0 ? 'Transition from the splash' : 'Transition in'}
             onChange={(transitionIn) => onChange({ ...scene, transitionIn })}
+            onPreview={onPreviewTransition}
           />
-        </Form.Item>
+        )}
 
         {scene.type === 'packshot' && (
           <>

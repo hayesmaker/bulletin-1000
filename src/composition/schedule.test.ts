@@ -26,7 +26,7 @@ const card = (type: 'packshot', duration: number): Scene => ({
   id: crypto.randomUUID(),
   type,
   duration,
-  transitionIn: 'cut',
+  transitionIn: { type: 'cut' },
   voiceLine: null,
   showTitle: false,
   rule: false,
@@ -44,7 +44,7 @@ const gameplay = (overrides: Partial<Scene> = {}): Scene =>
     duckMusic: true,
     duckLevel: null,
     captions: [],
-    transitionIn: 'cut',
+    transitionIn: { type: 'cut' },
     voiceLine: null,
     ...overrides,
   }) as Scene
@@ -105,14 +105,17 @@ describe('buildSchedule', () => {
       doc({
         scenes: [
           card('packshot', 4),
-          gameplay({ transitionIn: 'dissolve' }),
-          { ...card('packshot', 0.4), transitionIn: 'dissolve' },
+          gameplay({ transitionIn: { type: 'dissolve', length: 0.5 } }),
+          {
+            ...card('packshot', 0.4),
+            transitionIn: { type: 'dissolve', length: 0.5 },
+          },
         ],
       }),
       assets,
     )
-    expect(s.items[1]).toMatchObject({ start: 3.52, end: 9.52, dissolve: 0.48 })
-    expect(s.items[2]).toMatchObject({ start: 9.32, end: 9.72, dissolve: 0.2 })
+    expect(s.items[1]).toMatchObject({ start: 3.52, end: 9.52, overlap: 0.48 })
+    expect(s.items[2]).toMatchObject({ start: 9.32, end: 9.72, overlap: 0.2 })
     expect(itemsAt(s, 3.6).map((i) => i.id)).toEqual([
       s.items[0].id,
       s.items[1].id,
@@ -121,10 +124,63 @@ describe('buildSchedule', () => {
 
   it('ignores a dissolve on the first item', () => {
     const s = buildSchedule(
-      doc({ scenes: [gameplay({ transitionIn: 'dissolve' })] }),
+      doc({
+        scenes: [gameplay({ transitionIn: { type: 'dissolve', length: 0.5 } })],
+      }),
       assets,
     )
-    expect(s.items[0]).toMatchObject({ start: 0, dissolve: 0 })
+    expect(s.items[0]).toMatchObject({
+      start: 0,
+      overlap: 0,
+      transition: { type: 'cut' },
+    })
+  })
+
+  it('overlaps every transition but a cut by its own length', () => {
+    const s = buildSchedule(
+      doc({
+        scenes: [
+          card('packshot', 4),
+          {
+            ...card('packshot', 4),
+            transitionIn: {
+              type: 'wipe',
+              length: 1,
+              direction: 'left',
+              soft: false,
+            },
+          },
+          {
+            ...card('packshot', 4),
+            transitionIn: { type: 'spectrum-load', length: 3 },
+          },
+        ],
+      }),
+      assets,
+    )
+    expect(s.items[1]).toMatchObject({ start: 3, overlap: 1 })
+    // Capped at half of either scene.
+    expect(s.items[2]).toMatchObject({
+      start: 5,
+      overlap: 2,
+      transition: { type: 'spectrum-load' },
+    })
+  })
+
+  it('takes the first scene in from the splash with its transition', () => {
+    const s = buildSchedule(
+      doc({
+        splash: '1985',
+        scenes: [
+          {
+            ...card('packshot', 4),
+            transitionIn: { type: 'dip', length: 0.8, colour: '#000000' },
+          },
+        ],
+      }),
+      assets,
+    )
+    expect(s.items[1]).toMatchObject({ start: 1.6, overlap: 0.8 })
   })
 
   it('snaps every time to whole frames', () => {

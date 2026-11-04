@@ -34,6 +34,7 @@ import { EffectsPanel } from '#/components/editor/EffectsPanel'
 import { ExportPanel } from '#/components/editor/ExportPanel'
 import { MusicPanel } from '#/components/editor/MusicPanel'
 import { NarrationPanel } from '#/components/editor/NarrationPanel'
+import { EndingPanel } from '#/components/editor/EndingPanel'
 import { SceneInspector } from '#/components/editor/SceneInspector'
 import { SceneList } from '#/components/editor/SceneList'
 import { useAssets } from '#/components/editor/useAssets'
@@ -302,7 +303,13 @@ function Editor() {
               {
                 key: 'effects',
                 label: 'Effects',
-                children: <EffectsPanel doc={doc} update={update} />,
+                children: (
+                  <>
+                    <EffectsPanel doc={doc} update={update} />
+                    <Divider titlePlacement="start">Ending</Divider>
+                    <EndingPanel doc={doc} update={update} />
+                  </>
+                ),
               },
             ]}
           />
@@ -340,6 +347,9 @@ function Editor() {
               projectDuckLevel={doc.music.ducking.level}
               index={selectedIndex}
               assets={assets}
+              onPreviewTransition={() =>
+                setSeekTo({ sceneId: selected.id, transition: true })
+              }
               onChange={(scene) =>
                 update((d) => ({
                   ...d,

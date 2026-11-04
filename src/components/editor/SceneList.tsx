@@ -26,6 +26,7 @@ import type {
 import type { AssetRow } from '#/server/db/schema'
 import { splashLength } from '#/composition/schedule'
 import { formatSeconds, sceneIcons, sceneLabels, thumbUrl } from './labels'
+import { transitionLabels } from './TransitionEditor'
 
 interface Props {
   doc: ProjectDoc
@@ -204,7 +205,9 @@ function SceneRow({
           className="text-neutral-500"
         />
       )}
-      {scene.transitionIn === 'dissolve' && <Tag>Dissolve</Tag>}
+      {scene.transitionIn.type !== 'cut' && (
+        <Tag>{transitionLabels[scene.transitionIn.type]}</Tag>
+      )}
     </div>
   )
 }

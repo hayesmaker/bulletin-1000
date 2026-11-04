@@ -7,6 +7,7 @@ import { buildEffects } from './effects'
 import { buildLayer, drawBackdrop } from './scenes'
 import { splashFontFaces } from './splash'
 import type { CaptionCue, CompositionAsset, VideoCue } from './scenes'
+import { buildTransitions } from './transitions'
 import { colours, fonts, formats, fps } from './theme'
 import type { Format } from './theme'
 
@@ -103,22 +104,24 @@ export function createComposition(
   const captions: CaptionCue[] = []
   const videos: VideoCue[] = []
   const images: HTMLImageElement[] = []
+  const layers: HTMLElement[] = []
 
   for (const item of schedule.items) {
     const built = buildLayer(item, doc, assets, format)
     effects.content.append(built.layer)
+    layers.push(built.layer)
     captions.push(...built.captions)
     images.push(...built.images)
     if (built.video) videos.push(built.video)
     built.animate?.(tl, item.start, item.end)
 
-    if (item.dissolve > 0) {
+    if (item.transition.type === 'dissolve') {
       tl.fromTo(
         built.layer,
         { autoAlpha: 0 },
         {
           autoAlpha: 1,
-          duration: item.dissolve,
+          duration: item.overlap,
           ease: 'none',
           immediateRender: false,
         },
@@ -129,6 +132,13 @@ export function createComposition(
     }
     tl.set(built.layer, { autoAlpha: 0 }, item.end)
   }
+  const updateTransitions = buildTransitions(
+    schedule.items,
+    layers,
+    format,
+    schedule.duration,
+    doc.ending,
+  )
   for (const c of captions) {
     tl.set(c.el, { autoAlpha: 1 }, c.start)
     tl.set(c.el, { autoAlpha: 0 }, c.end)
@@ -208,6 +218,7 @@ export function createComposition(
   const seek = (t: number) => {
     const time = clampTime(t)
     tl.seek(time, false)
+    updateTransitions(time)
     effects.update(Math.floor(time * fps + 1e-6))
   }
 

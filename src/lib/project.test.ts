@@ -9,6 +9,7 @@ import {
   createProjectDoc,
   moveScene,
   newScene,
+  newTransition,
   projectDocSchema,
   removeAssetReferences,
   removeScene,
@@ -59,7 +60,12 @@ describe('projectDocSchema', () => {
     expect(parsed.music.volume).toBe(1)
     const gameplay = parsed.scenes[3]
     expect(gameplay.type === 'gameplay' && gameplay.keepClipAudio).toBe(false)
-    expect(parsed.scenes[0].transitionIn).toBe('cut')
+    expect(parsed.scenes[0].transitionIn).toEqual({ type: 'cut' })
+    // Older docs stored 'dissolve', always 0.5s long.
+    expect(parsed.scenes[3].transitionIn).toEqual({
+      type: 'dissolve',
+      length: 0.5,
+    })
   })
 
   it('rejects an out point before the in point', () => {
@@ -381,6 +387,48 @@ describe('packshot', () => {
         ...old,
         badge: { ...badge, store: 'steam' },
       }).success,
+    ).toBe(false)
+  })
+})
+
+describe('transitions', () => {
+  it('makes a valid default of every type, and an ending', () => {
+    const types = [
+      'cut',
+      'dissolve',
+      'dip',
+      'wipe',
+      'iris',
+      'push',
+      'slide',
+      'zoom',
+      'flip',
+      'spectrum-load',
+      'tape-loader',
+    ] as const
+    const doc = createProjectDoc()
+    const scenes = types.map((t) => ({
+      ...newScene('packshot'),
+      transitionIn: newTransition(t),
+    }))
+    expect(projectDocSchema.safeParse({ ...doc, scenes }).success).toBe(true)
+    const { ending: _, ...old } = doc
+    expect(projectDocSchema.parse(old).ending).toEqual({ type: 'cut' })
+  })
+
+  it('rejects unknown types and lengths out of range', () => {
+    const doc = createProjectDoc()
+    const withTransition = (transitionIn: unknown) => ({
+      ...doc,
+      scenes: [{ ...newScene('packshot'), transitionIn }],
+    })
+    expect(
+      projectDocSchema.safeParse(withTransition({ type: 'star-wipe' })).success,
+    ).toBe(false)
+    expect(
+      projectDocSchema.safeParse(
+        withTransition({ type: 'dissolve', length: 10 }),
+      ).success,
     ).toBe(false)
   })
 })

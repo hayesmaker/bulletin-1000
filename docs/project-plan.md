@@ -60,6 +60,7 @@ Updated 2026-11-02.
   - 4:3 output is unchanged: frames are byte-identical to before.
   - **Backdrop (2026-11-02):** what fills the stage around the game screen is a project setting, black by default. 'blur' draws the clip's current frame small onto a canvas, CSS-blurred and darkened, in both preview and export (export output stays deterministic).
 - **Look: clean output for the MVP.** CRT/VHS filters come in the effects milestone.
+- **Transitions (decided 2026-11-03):** each scene's `transitionIn` is a type with a length and its own settings; the first scene's is its transition from the splash. Every transition but a cut overlaps the previous scene by its length, capped at half of either scene, like dissolves always have. Dissolves stay on the GSAP timeline, so older videos are unchanged; the rest are pure functions of progress (`transitions.ts`) that style the incoming and outgoing layers (clip paths, masks, transforms, filters) and an overlay above them, applied on every seek, so preview and export match and anything random is seeded by the frame. Older docs' `'cut'` and `'dissolve'` are read as `{ type: 'cut' }` and a 0.5s dissolve. In-scene animations (slow zooms, box art sliding in, captions typing on) are a separate milestone.
 - **Effects (decided 2026-11-02):** CSS and SVG filters on the composition stage rather than WebGL shaders. The stage is DOM, which WebGL can't read without re-rendering it, and filters keep preview and export identical with one implementation. Each effect is an amount from 0 to 1 in the doc, with presets as starting points. Everything time-based comes from the frame number, and a video with every effect at 0 is drawn exactly as before.
 - **Uploads:** gameplay clips are limited (around 100MB or 2 min). Users set in/out points in the editor, and the server transcodes clips to a standard format (H.264/AAC MP4, constant frame rate) with ffmpeg on upload.
 
@@ -197,7 +198,15 @@ Goal: upload assets, fill in game details, arrange scenes, and get one Bulletin 
 
   - [x] Checked preview frame rate with effects (2026-11-02): smooth in the author's browser, so no simplified preview is needed
   - [ ] More effects: dropout lines, tape crease, roll/hum bar, phosphor glow
-- [ ] Selectable and editable transitions/animations
+- [x] Selectable and editable transitions (2026-11-03)
+  - [x] Broadcast: cut, dissolve (now with a length) and dip to colour
+  - [x] Vision mixer: wipe (4 directions, hard or soft edge), box/circle iris (open or close), push, slide, zoom (new scene grows, or old one shrinks away, from the centre or a corner) and flip (top over bottom, or side to side)
+  - [x] Retro computer: Spectrum screen load (lines in the Spectrum's interleaved order in black and white, then the colour arrives cell by cell) and tape loader (Spectrum pilot and data stripes, or C64 multicolour stripes)
+  - [x] Transition from the splash, as the first scene's transition in
+  - [x] Video ending: cut, or a fade to a colour (Effects tab)
+  - [x] Transition editor in the scene inspector (type, settings, length) and a preview button that plays from a second before the transition; the scene list tags non-cut transitions
+  - [ ] More: barn doors, clock wipe, blinds, mosaic, CRT off/on, VHS tracking glitch
+- [ ] In-scene animations (slow zoom on stills, box art sliding in, captions typing on)
 - [ ] Additional templates (e.g. a WHSmith-style compilation)
 - [ ] Homepage with a promo video made by the tool itself
 
